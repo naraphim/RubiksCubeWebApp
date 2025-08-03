@@ -33,20 +33,22 @@ const gizmoRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
 gizmoContainer.appendChild(gizmoRenderer.domElement);
 const gizmoScene = new THREE.Scene();
-const gizmoCamera = new THREE.PerspectiveCamera(50, gizmoContainer.clientWidth / gizmoContainer.clientHeight, 0.1, 100);
-gizmoCamera.position.set(0, 0, 3); // The gizmo camera is static
+// MODIFIED: Restored the OrthographicCamera for a distortion-free view
+const gizmoCamera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.1, 100);
+gizmoCamera.position.set(0, 0, 10);
 
-const gizmo = new THREE.Group(); // The gizmo itself is the object that will rotate
-gizmoScene.add(gizmo);
-const axisLength = 1;
-const headLength = 0.25;
-const headWidth = 0.15;
+const gizmo = new THREE.Group();
+const axisLength = 1.5;
+const headLength = 0.5;
+const headWidth = 0.35;
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), axisLength, 0xcc2222, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 0), axisLength, 0xcc2222, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), axisLength, 0x2222cc, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 0), axisLength, 0x2222cc, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
+gizmoScene.add(gizmo);
+
 
 // ── Cube Constants, Materials, and Build Logic --------------------------------
 const CUBE_SIZE = 3, CUBIE_WIDTH = 1, CUBIE_SPACING = 0.05, STEP = CUBIE_WIDTH + CUBIE_SPACING, HALF_IDX = (CUBE_SIZE - 1) / 2;
@@ -247,17 +249,25 @@ manualControlsContainer.addEventListener('click', (event) => {
 resetBtn.addEventListener('click', () => {
     if (isAnimating) return;
     console.log("--- Reset Triggered ---");
+
     TWEEN.removeAll();
     clearTimeout(nextMoveTimeoutId);
+
     cubies.forEach(c => {
         c.position.copy(c.userData.initialPosition);
         c.quaternion.copy(c.userData.initialQuaternion);
     });
+
     isAnimating = false;
-    isPaused = true;
-    playPauseBtn.textContent = '▶️';
-    hudMoveInfo.textContent = "Cube Reset. Paused.";
+    shouldPauseAfterMove = false;
+    isPaused = false;
+
+    playPauseBtn.textContent = '⏸️';
+    hudMoveInfo.textContent = "Cube Reset. Resuming animation...";
     logFullCubeState("After Reset");
+
+    currentRotationIndex = 0;
+    scheduleNextRotation();
     updateManualControlsState();
 });
 
@@ -335,6 +345,7 @@ function animate() {
     renderer.render(scene, camera);
 
     // --- MODIFIED: Corrected Gizmo Logic ---
+    // The gizmo itself should rotate to the inverse of the camera's rotation
     gizmo.quaternion.copy(camera.quaternion).invert();
     gizmoRenderer.render(gizmoScene, gizmoCamera);
 }
