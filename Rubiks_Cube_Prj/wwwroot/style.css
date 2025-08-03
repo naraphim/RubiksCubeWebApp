@@ -33,7 +33,7 @@
     border-bottom: 1px solid #888;
     padding-bottom: 0.5vw;
     margin-bottom: 0.5vw;
-    white-space: pre;
+    white-space: pre-wrap;
 }
 
 #hud-cube-state {
@@ -43,13 +43,11 @@
 #hud-controls {
     padding-top: 1vw;
     text-align: center;
-    /* NEW: Add gap for spacing */
     display: flex;
     justify-content: center;
     gap: 1.5vw;
 }
 
-/* Common style for both HUD buttons */
 #play-pause-btn, #randomize-btn {
     font-size: 2vw;
     background: none;
@@ -67,8 +65,15 @@
     padding: 1vw;
     border-radius: 5px;
     display: flex;
+    align-items: center;
     gap: 1vw;
     z-index: 10;
+}
+
+#gizmo-container {
+    width: 8vw;
+    height: 8vw;
+    position: relative;
 }
 
 .control-group {
@@ -84,6 +89,18 @@
     font-weight: bold;
     border-bottom: 1px solid #888;
     margin-bottom: 0.5vw;
+}
+
+.axis-x {
+    color: #cc2222;
+}
+
+.axis-y {
+    color: #2222cc;
+}
+
+.axis-z {
+    color: #22cc22;
 }
 
 .control-row {
@@ -106,7 +123,16 @@
         cursor: pointer;
     }
 
-        .control-row button:disabled, #randomize-btn:disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
+#randomize-btn {
+    font-size: 2vw;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: black;
+}
+
+    .control-row button:disabled, #randomize-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }

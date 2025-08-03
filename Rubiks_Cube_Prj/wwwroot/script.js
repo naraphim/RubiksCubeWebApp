@@ -27,23 +27,33 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
 dirLight.position.set(10, 20, 5);
 scene.add(dirLight);
 
-// ── Cube Constants ------------------------------------------------------------
-const CUBE_SIZE = 3;
-const CUBIE_WIDTH = 1;
-const CUBIE_SPACING = 0.05;
-const STEP = CUBIE_WIDTH + CUBIE_SPACING;
-const HALF_IDX = (CUBE_SIZE - 1) / 2;
+// --- Axis Gizmo Setup ----------------------------------------------------
+const gizmoContainer = document.getElementById('gizmo-container');
+const gizmoRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
+gizmoContainer.appendChild(gizmoRenderer.domElement);
 
-// ── Materials -----------------------------------------------------------------
+const gizmoScene = new THREE.Scene();
+const gizmoCamera = new THREE.PerspectiveCamera(50, gizmoContainer.clientWidth / gizmoContainer.clientHeight, 0.1, 100);
+gizmoCamera.position.set(0, 0, 3);
+
+const gizmo = new THREE.Group();
+const axisLength = 1;
+const headLength = 0.25;
+const headWidth = 0.15;
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), axisLength, 0xcc2222, headLength, headWidth));
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, 0), axisLength, 0xcc2222, headLength, headWidth));
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), axisLength, 0x2222cc, headLength, headWidth));
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 0), axisLength, 0x2222cc, headLength, headWidth));
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
+gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
+gizmoScene.add(gizmo);
+
+// ── Cube Constants, Materials, and Build Logic --------------------------------
+const CUBE_SIZE = 3, CUBIE_WIDTH = 1, CUBIE_SPACING = 0.05, STEP = CUBIE_WIDTH + CUBIE_SPACING, HALF_IDX = (CUBE_SIZE - 1) / 2;
 const colors = { black: 0x000000, white: 0xffffff, yellow: 0xffff00, green: 0x00ff00, blue: 0x0000ff, red: 0xff0000, orange: 0xffa500 };
-const faceMats = [
-    new THREE.MeshStandardMaterial({ color: colors.red }), new THREE.MeshStandardMaterial({ color: colors.orange }),
-    new THREE.MeshStandardMaterial({ color: colors.white }), new THREE.MeshStandardMaterial({ color: colors.yellow }),
-    new THREE.MeshStandardMaterial({ color: colors.blue }), new THREE.MeshStandardMaterial({ color: colors.green }),
-];
+const faceMats = [new THREE.MeshStandardMaterial({ color: colors.red }), new THREE.MeshStandardMaterial({ color: colors.orange }), new THREE.MeshStandardMaterial({ color: colors.white }), new THREE.MeshStandardMaterial({ color: colors.yellow }), new THREE.MeshStandardMaterial({ color: colors.blue }), new THREE.MeshStandardMaterial({ color: colors.green }),];
 const blackMat = new THREE.MeshStandardMaterial({ color: colors.black });
-
-// ── Build Cubies -------------------------------------------------------------
 const cubies = [];
 const rubiksCube = new THREE.Group();
 scene.add(rubiksCube);
@@ -52,11 +62,7 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
         for (let zi = 0; zi < CUBE_SIZE; zi++) {
             if (xi === HALF_IDX && yi === HALF_IDX && zi === HALF_IDX) continue;
             const pos = new THREE.Vector3((xi - HALF_IDX) * STEP, (yi - HALF_IDX) * STEP, (zi - HALF_IDX) * STEP);
-            const mats = [
-                pos.x > 0.1 ? faceMats[0] : blackMat, pos.x < -0.1 ? faceMats[1] : blackMat,
-                pos.y > 0.1 ? faceMats[2] : blackMat, pos.y < -0.1 ? faceMats[3] : blackMat,
-                pos.z > 0.1 ? faceMats[4] : blackMat, pos.z < -0.1 ? faceMats[5] : blackMat
-            ];
+            const mats = [pos.x > 0.1 ? faceMats[0] : blackMat, pos.x < -0.1 ? faceMats[1] : blackMat, pos.y > 0.1 ? faceMats[2] : blackMat, pos.y < -0.1 ? faceMats[3] : blackMat, pos.z > 0.1 ? faceMats[4] : blackMat, pos.z < -0.1 ? faceMats[5] : blackMat];
             const mesh = new THREE.Mesh(new RoundedBoxGeometry(CUBIE_WIDTH, CUBIE_WIDTH, CUBIE_WIDTH, 4, 0.1), mats);
             mesh.position.copy(pos);
             cubies.push(mesh);
@@ -116,6 +122,23 @@ function logFullCubeState(label) {
     });
     console.groupEnd();
 }
+
+// ── Input Logging -------------------------------------------------------------
+const pointerDown = new THREE.Vector2();
+const CLICK_TOLERANCE = 5;
+
+renderer.domElement.addEventListener('mousedown', e => {
+    console.log(`Mousedown at (${e.clientX}, ${e.clientY})`);
+    pointerDown.set(e.clientX, e.clientY);
+});
+renderer.domElement.addEventListener('mouseup', e => {
+    console.log(`Mouseup at (${e.clientX}, ${e.clientY})`);
+    const up = new THREE.Vector2(e.clientX, e.clientY);
+    if (pointerDown.distanceTo(up) >= CLICK_TOLERANCE) {
+        console.log(`Drag from(${pointerDown.x}, ${pointerDown.y}) → (${e.clientX}, ${e.clientY})`);
+    }
+});
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Helpers -------------------------------------------------------------------
 const snap = v => Math.round(v / STEP) * STEP;
@@ -188,7 +211,6 @@ function scheduleNextRotation() {
     nextMoveTimeoutId = setTimeout(runNextRotation, DURATION_PAUSE);
 }
 
-// --- MODIFIED: This function now controls ALL buttons ---
 function updateManualControlsState() {
     const buttons = manualControlsContainer.getElementsByTagName('button');
     for (const btn of buttons) {
@@ -249,11 +271,7 @@ const INVERSE_MOVES = {
 };
 
 function generateScrambleSequence() {
-    const axisPool = [
-        ...'xxxxxxx'.split(''),
-        ...'yyyyyyy'.split(''),
-        ...'zzzzzz'.split('')
-    ];
+    const axisPool = [...'xxxxxxx'.split(''), ...'yyyyyyy'.split(''), ...'zzzzzz'.split('')];
     for (let i = axisPool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [axisPool[i], axisPool[j]] = [axisPool[j], axisPool[i]];
@@ -309,7 +327,16 @@ function animate() {
     if (!isPaused) TWEEN.update();
     controls.update();
     updateHudState();
+
+    // Render main scene
     renderer.render(scene, camera);
+
+    // Render Gizmo
+    const gizmoRotation = new THREE.Quaternion();
+    camera.getWorldQuaternion(gizmoRotation);
+    gizmo.quaternion.copy(gizmoRotation).invert();
+
+    gizmoRenderer.render(gizmoScene, gizmoCamera);
 }
 
 // --- Start Everything ---
@@ -323,4 +350,8 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+
+    gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
+    gizmoCamera.aspect = gizmoContainer.clientWidth / gizmoContainer.clientHeight;
+    gizmoCamera.updateProjectionMatrix();
 });
