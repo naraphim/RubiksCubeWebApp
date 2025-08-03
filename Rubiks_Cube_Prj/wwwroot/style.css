@@ -10,7 +10,7 @@
     width: 100vw;
     height: 100vh;
     display: block;
-    z-index: 1; /* Set the canvas to a lower layer */
+    z-index: 1;
 }
 
 #hud {
@@ -26,7 +26,7 @@
     max-height: 90vh;
     overflow-y: auto;
     width: 25vw;
-    z-index: 10; /* Set the HUD to a higher layer */
+    z-index: 10;
 }
 
 #hud-move-info {
@@ -53,3 +53,55 @@
     padding: 0;
     color: black;
 }
+
+#manual-controls {
+    position: absolute;
+    top: 1vw;
+    right: 1vw;
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 1vw;
+    border-radius: 5px;
+    display: flex;
+    gap: 1vw;
+    z-index: 10;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+.control-label {
+    font-family: monospace;
+    font-size: 1vw;
+    font-weight: bold;
+    border-bottom: 1px solid #888;
+    margin-bottom: 0.5vw;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+    .control-row span {
+        font-family: monospace;
+        font-size: 1.2vw;
+        width: 1.5vw;
+        text-align: center;
+    }
+
+    .control-row button {
+        font-size: 1.2vw;
+        width: 2.5vw;
+        height: 2.5vw;
+        cursor: pointer;
+    }
+
+        .control-row button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
