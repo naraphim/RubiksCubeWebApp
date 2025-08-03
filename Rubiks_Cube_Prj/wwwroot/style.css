@@ -1,0 +1,55 @@
+﻿body {
+    margin: 0;
+    overflow: hidden;
+}
+
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    z-index: 1; /* Set the canvas to a lower layer */
+}
+
+#hud {
+    position: absolute;
+    top: 1vw;
+    left: 1vw;
+    background-color: rgba(255, 255, 255, 0.85);
+    color: black;
+    padding: 1vw;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 0.8vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    width: 25vw;
+    z-index: 10; /* Set the HUD to a higher layer */
+}
+
+#hud-move-info {
+    border-bottom: 1px solid #888;
+    padding-bottom: 0.5vw;
+    margin-bottom: 0.5vw;
+    white-space: pre;
+}
+
+#hud-cube-state {
+    white-space: pre;
+}
+
+#hud-controls {
+    padding-top: 1vw;
+    text-align: center;
+}
+
+#play-pause-btn {
+    font-size: 2vw;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: black;
+}

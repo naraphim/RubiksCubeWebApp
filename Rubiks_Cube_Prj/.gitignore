@@ -1,0 +1,89 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# User-specific files (MonoDevelop/Xamarin Studio)
+*.userprefs
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio 2015 cache/options directory
+.vs/
+# Visual Studio 2017 cache/options directory
+.vs/
+# Rider cache/options directory
+.idea/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.nunit
+nunit-project.xml
+
+# Build Results of an ATL Project
+[Dd]ebugPS/
+[Rr]eleasePS/
+dlldata.c
+
+# Benchmark Results
+BenchmarkDotNet.Artifacts/
+
+# Folders containing files produced by MsBuild that cannot be moved to different locations.
+.sqlbits/
+*.[Pp]ublish.xml
+*.pubxml
+*.[Pp]ublish[Pp]rofile
+
+# NuGet Packages
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# The obj/ reentrancy check state folder, left behind by older versions of NuGet
+**/[Oo]bj/project.nuget.*
+
+# ReSharper is a Visual Studio extension that generates files into the project directory
+_ReSharper*/
+*.[Rr]e[Ss]harper
+**/[Rr]e[Ss]harper*.dll
+
+# DotCover is a Code Coverage Tool
+*.dotCover
+
+# TeamCity is a build add-in
+_TeamCity*
+
+# Dotpeek project files
+*.dtproj
+
+# Visual Studio Code files
+.vscode/
+
+# OzCode files
+*.ozcode
+
+# FAKE - F# Make
+.fake/
+
+# Node Modules
+node_modules/

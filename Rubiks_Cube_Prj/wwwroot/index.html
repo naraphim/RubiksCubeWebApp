@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Rubik's Cube</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="hud">
+        <div id="hud-move-info"></div>
+        <div id="hud-cube-state"></div>
+        <!-- NEW: Container for the play/pause button -->
+        <div id="hud-controls">
+            <button id="play-pause-btn">⏸️</button>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
+                "tween": "https://unpkg.com/@tweenjs/tween.js@20.0.3/dist/tween.esm.js"
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
