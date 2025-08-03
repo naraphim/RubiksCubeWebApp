@@ -7,6 +7,8 @@ import TWEEN from 'tween';
 // --- Timing Constants ---
 const DURATION_ROTATE = 750;
 const DURATION_PAUSE = 1250;
+const DURATION_RANDOM_ROTATE = 150;
+const DURATION_RANDOM_PAUSE = 50;
 
 // ── Scene, Camera & Renderer --------------------------------------------------
 const scene = new THREE.Scene();
@@ -63,7 +65,7 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
     }
 }
 
-// ── Systematic Rotation Definitions (MODIFIED FOR INTUITIVE CONTROL) ----------
+// ── Systematic Rotation Definitions -----------------------------------------
 const ROTATIONS = {
     'R+': { name: 'R+', axis: 'x', coord: STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
     'R-': { name: 'R-', axis: 'x', coord: STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
@@ -84,7 +86,6 @@ const ROTATIONS = {
     'S+': { name: 'S+', axis: 'z', coord: 0, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
     'S-': { name: 'S-', axis: 'z', coord: 0, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
 };
-
 const ROTATION_SEQUENCE = [
     ROTATIONS['L+'], ROTATIONS['L-'], ROTATIONS['M+'], ROTATIONS['M-'], ROTATIONS['R+'], ROTATIONS['R-'],
     ROTATIONS['D+'], ROTATIONS['D-'], ROTATIONS['E+'], ROTATIONS['E-'], ROTATIONS['U+'], ROTATIONS['U-'],
@@ -96,6 +97,7 @@ const hudMoveInfo = document.getElementById('hud-move-info');
 const hudCubeState = document.getElementById('hud-cube-state');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const manualControlsContainer = document.getElementById('manual-controls');
+const randomizeBtn = document.getElementById('randomize-btn');
 
 function updateHudState() {
     let stateText = '';
@@ -131,7 +133,7 @@ let isAnimating = false;
 let isPaused = false;
 let shouldPauseAfterMove = false;
 
-function rotateSlice(normal, axisChar, coord, dir, onComplete) {
+function rotateSlice(normal, axisChar, coord, dir, duration, onComplete) {
     isAnimating = true;
     updateManualControlsState();
     const slice = findSliceByCoord(axisChar, coord);
@@ -139,7 +141,7 @@ function rotateSlice(normal, axisChar, coord, dir, onComplete) {
     const angle = dir * Math.PI / 2;
     slice.forEach(c => { c._prePos = c.position.clone(); c._preQuat = c.quaternion.clone(); });
     new TWEEN.Tween({ t: 0 })
-        .to({ t: 1 }, DURATION_ROTATE)
+        .to({ t: 1 }, duration)
         .easing(TWEEN.Easing.Quadratic.InOut)
         .onUpdate(({ t }) => {
             const dq = new THREE.Quaternion().setFromAxisAngle(normal, angle * t);
@@ -178,7 +180,7 @@ function runNextRotation() {
         currentRotationIndex = (currentRotationIndex + 1) % ROTATION_SEQUENCE.length;
         scheduleNextRotation();
     };
-    rotateSlice(rotNormal, move.axis, move.coord, move.dir, onComplete);
+    rotateSlice(rotNormal, move.axis, move.coord, move.dir, DURATION_ROTATE, onComplete);
 }
 
 function scheduleNextRotation() {
@@ -214,7 +216,7 @@ playPauseBtn.addEventListener('click', () => {
 });
 
 manualControlsContainer.addEventListener('click', (event) => {
-    if (event.target.tagName !== 'BUTTON' || !isPaused || isAnimating) return;
+    if (event.target.tagName !== 'BUTTON' || event.target.id === 'randomize-btn' || !isPaused || isAnimating) return;
     const moveId = event.target.id.replace('btn-', '');
     const move = ROTATIONS[moveId];
     if (!move) return;
@@ -225,11 +227,84 @@ manualControlsContainer.addEventListener('click', (event) => {
 
     isPaused = false;
     const rotNormal = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
-    rotateSlice(rotNormal, move.axis, move.coord, move.dir, () => {
+    rotateSlice(rotNormal, move.axis, move.coord, move.dir, DURATION_ROTATE, () => {
         logFullCubeState(`After Rotation (${move.name})`);
         isPaused = true;
         updateManualControlsState();
     });
+});
+
+// ── Randomizer Logic ------------------------------------------------------------
+const MOVES_BY_AXIS = {
+    x: ['R+', 'R-', 'L+', 'L-', 'M+', 'M-'],
+    y: ['U+', 'U-', 'D+', 'D-', 'E+', 'E-'],
+    z: ['F+', 'F-', 'B+', 'B-', 'S+', 'S-']
+};
+const INVERSE_MOVES = {
+    'R+': 'R-', 'R-': 'R+', 'L+': 'L-', 'L-': 'L+', 'M+': 'M-', 'M-': 'M+',
+    'U+': 'U-', 'U-': 'U+', 'D+': 'D-', 'D-': 'D+', 'E+': 'E-', 'E-': 'E+',
+    'F+': 'F-', 'F-': 'F+', 'B+': 'B-', 'B-': 'B+', 'S+': 'S-', 'S-': 'S+'
+};
+
+function generateScrambleSequence() {
+    const axisPool = [
+        ...'xxxxxxx'.split(''),
+        ...'yyyyyyy'.split(''),
+        ...'zzzzzz'.split('')
+    ];
+    for (let i = axisPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [axisPool[i], axisPool[j]] = [axisPool[j], axisPool[i]];
+    }
+
+    const sequence = [];
+    let lastMoveName = null;
+
+    for (const axis of axisPool) {
+        const possibleMoves = MOVES_BY_AXIS[axis];
+        let chosenMoveName;
+        do {
+            chosenMoveName = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+        } while (lastMoveName && chosenMoveName === INVERSE_MOVES[lastMoveName]);
+
+        sequence.push(ROTATIONS[chosenMoveName]);
+        lastMoveName = chosenMoveName;
+    }
+    console.log("Generated Scramble Sequence:", sequence.map(m => m.name).join(' '));
+    return sequence;
+}
+
+let currentScrambleIndex = 0;
+function runScrambleSequence(sequence) {
+    const move = sequence[currentScrambleIndex];
+    const dirLabel = move.dir < 0 ? 'CW' : 'CCW';
+    hudMoveInfo.textContent = `Scrambling: ${move.name} (${dirLabel}) [${currentScrambleIndex + 1}/20]`;
+
+    const rotNormal = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
+    const onComplete = () => {
+        logFullCubeState(`After Scramble Move ${currentScrambleIndex + 1} (${move.name})`);
+        currentScrambleIndex++;
+        if (currentScrambleIndex < sequence.length) {
+            setTimeout(() => runScrambleSequence(sequence), DURATION_RANDOM_PAUSE);
+        } else {
+            console.log("Scramble complete.");
+            hudMoveInfo.textContent = "Scramble Complete. Paused.";
+            isPaused = true;
+            updateManualControlsState();
+        }
+    };
+    rotateSlice(rotNormal, move.axis, move.coord, move.dir, DURATION_RANDOM_ROTATE, onComplete);
+}
+
+randomizeBtn.addEventListener('click', () => {
+    if (!isPaused || isAnimating) return;
+
+    console.log("--- Scramble Started ---");
+    isPaused = false;
+
+    const sequence = generateScrambleSequence();
+    currentScrambleIndex = 0;
+    runScrambleSequence(sequence);
 });
 
 // ── Animation Loop & Window Resize --------------------------------------------
