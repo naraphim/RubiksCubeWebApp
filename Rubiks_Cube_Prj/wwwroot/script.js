@@ -188,11 +188,13 @@ function scheduleNextRotation() {
     nextMoveTimeoutId = setTimeout(runNextRotation, DURATION_PAUSE);
 }
 
+// --- MODIFIED: This function now controls ALL buttons ---
 function updateManualControlsState() {
     const buttons = manualControlsContainer.getElementsByTagName('button');
     for (const btn of buttons) {
         btn.disabled = !isPaused || isAnimating;
     }
+    randomizeBtn.disabled = !isPaused || isAnimating;
 }
 
 playPauseBtn.addEventListener('click', () => {
@@ -256,17 +258,14 @@ function generateScrambleSequence() {
         const j = Math.floor(Math.random() * (i + 1));
         [axisPool[i], axisPool[j]] = [axisPool[j], axisPool[i]];
     }
-
     const sequence = [];
     let lastMoveName = null;
-
     for (const axis of axisPool) {
         const possibleMoves = MOVES_BY_AXIS[axis];
         let chosenMoveName;
         do {
             chosenMoveName = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
         } while (lastMoveName && chosenMoveName === INVERSE_MOVES[lastMoveName]);
-
         sequence.push(ROTATIONS[chosenMoveName]);
         lastMoveName = chosenMoveName;
     }
@@ -279,7 +278,6 @@ function runScrambleSequence(sequence) {
     const move = sequence[currentScrambleIndex];
     const dirLabel = move.dir < 0 ? 'CW' : 'CCW';
     hudMoveInfo.textContent = `Scrambling: ${move.name} (${dirLabel}) [${currentScrambleIndex + 1}/20]`;
-
     const rotNormal = new THREE.Vector3(move.axis === 'x' ? 1 : 0, move.axis === 'y' ? 1 : 0, move.axis === 'z' ? 1 : 0);
     const onComplete = () => {
         logFullCubeState(`After Scramble Move ${currentScrambleIndex + 1} (${move.name})`);
@@ -298,10 +296,8 @@ function runScrambleSequence(sequence) {
 
 randomizeBtn.addEventListener('click', () => {
     if (!isPaused || isAnimating) return;
-
     console.log("--- Scramble Started ---");
     isPaused = false;
-
     const sequence = generateScrambleSequence();
     currentScrambleIndex = 0;
     runScrambleSequence(sequence);

@@ -43,9 +43,14 @@
 #hud-controls {
     padding-top: 1vw;
     text-align: center;
+    /* NEW: Add gap for spacing */
+    display: flex;
+    justify-content: center;
+    gap: 1.5vw;
 }
 
-#play-pause-btn {
+/* Common style for both HUD buttons */
+#play-pause-btn, #randomize-btn {
     font-size: 2vw;
     background: none;
     border: none;
@@ -101,19 +106,7 @@
         cursor: pointer;
     }
 
-        .control-row button:disabled {
+        .control-row button:disabled, #randomize-btn:disabled {
             cursor: not-allowed;
             opacity: 0.5;
         }
-
-#randomize-btn {
-    font-size: 1.2vw;
-    padding: 0.5vw 1vw;
-    cursor: pointer;
-    width: 100%;
-}
-
-    #randomize-btn:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
