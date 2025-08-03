@@ -63,28 +63,33 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
     }
 }
 
-// ── Systematic Rotation Definitions -----------------------------------------
+// ── Systematic Rotation Definitions (MODIFIED FOR INTUITIVE CONTROL) ----------
 const ROTATIONS = {
-    'R+': { name: 'R+', axis: 'x', coord: STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
-    'R-': { name: 'R-', axis: 'x', coord: STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
+    'R+': { name: 'R+', axis: 'x', coord: STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
+    'R-': { name: 'R-', axis: 'x', coord: STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
     'L+': { name: 'L+', axis: 'x', coord: -STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
     'L-': { name: 'L-', axis: 'x', coord: -STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
     'M+': { name: 'M+', axis: 'x', coord: 0, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
     'M-': { name: 'M-', axis: 'x', coord: 0, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
     'U+': { name: 'U+', axis: 'y', coord: STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
     'U-': { name: 'U-', axis: 'y', coord: STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'D+': { name: 'D+', axis: 'y', coord: -STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'D-': { name: 'D-', axis: 'y', coord: -STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
-    'E+': { name: 'E+', axis: 'y', coord: 0, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'E-': { name: 'E-', axis: 'y', coord: 0, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
+    'D+': { name: 'D+', axis: 'y', coord: -STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
+    'D-': { name: 'D-', axis: 'y', coord: -STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
+    'E+': { name: 'E+', axis: 'y', coord: 0, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
+    'E-': { name: 'E-', axis: 'y', coord: 0, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
     'F+': { name: 'F+', axis: 'z', coord: STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
     'F-': { name: 'F-', axis: 'z', coord: STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
-    'B+': { name: 'B+', axis: 'z', coord: -STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
-    'B-': { name: 'B-', axis: 'z', coord: -STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
+    'B+': { name: 'B+', axis: 'z', coord: -STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
+    'B-': { name: 'B-', axis: 'z', coord: -STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
     'S+': { name: 'S+', axis: 'z', coord: 0, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
     'S-': { name: 'S-', axis: 'z', coord: 0, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
 };
-const ROTATION_SEQUENCE = Object.values(ROTATIONS);
+
+const ROTATION_SEQUENCE = [
+    ROTATIONS['L+'], ROTATIONS['L-'], ROTATIONS['M+'], ROTATIONS['M-'], ROTATIONS['R+'], ROTATIONS['R-'],
+    ROTATIONS['D+'], ROTATIONS['D-'], ROTATIONS['E+'], ROTATIONS['E-'], ROTATIONS['U+'], ROTATIONS['U-'],
+    ROTATIONS['B+'], ROTATIONS['B-'], ROTATIONS['S+'], ROTATIONS['S-'], ROTATIONS['F+'], ROTATIONS['F-'],
+];
 
 // ── HUD & Telemetry -----------------------------------------------------------
 const hudMoveInfo = document.getElementById('hud-move-info');
@@ -223,7 +228,6 @@ manualControlsContainer.addEventListener('click', (event) => {
     rotateSlice(rotNormal, move.axis, move.coord, move.dir, () => {
         logFullCubeState(`After Rotation (${move.name})`);
         isPaused = true;
-        // --- CRITICAL FIX: Update button state after manual move is complete ---
         updateManualControlsState();
     });
 });
