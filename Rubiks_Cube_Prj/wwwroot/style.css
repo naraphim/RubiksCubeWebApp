@@ -47,8 +47,8 @@
     justify-content: center;
     gap: 1.5vw;
 }
-
-#play-pause-btn, #randomize-btn {
+/* MODIFIED: Selector now includes all four buttons */
+#play-pause-btn, #randomize-btn, #solve-btn, #reset-btn {
     font-size: 2vw;
     background: none;
     border: none;
@@ -122,17 +122,8 @@
         height: 2.5vw;
         cursor: pointer;
     }
-
-#randomize-btn {
-    font-size: 2vw;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    color: black;
-}
-
-    .control-row button:disabled, #randomize-btn:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
+        /* MODIFIED: Selector now includes all buttons that can be disabled */
+        .control-row button:disabled, #randomize-btn:disabled, #solve-btn:disabled, #reset-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }

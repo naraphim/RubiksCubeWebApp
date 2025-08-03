@@ -32,12 +32,12 @@ const gizmoContainer = document.getElementById('gizmo-container');
 const gizmoRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
 gizmoContainer.appendChild(gizmoRenderer.domElement);
-
 const gizmoScene = new THREE.Scene();
 const gizmoCamera = new THREE.PerspectiveCamera(50, gizmoContainer.clientWidth / gizmoContainer.clientHeight, 0.1, 100);
-gizmoCamera.position.set(0, 0, 3);
+gizmoCamera.position.set(0, 0, 3); // The gizmo camera is static
 
-const gizmo = new THREE.Group();
+const gizmo = new THREE.Group(); // The gizmo itself is the object that will rotate
+gizmoScene.add(gizmo);
 const axisLength = 1;
 const headLength = 0.25;
 const headWidth = 0.15;
@@ -47,7 +47,6 @@ gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0,
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 0), axisLength, 0x2222cc, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
 gizmo.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), axisLength, 0x22cc22, headLength, headWidth));
-gizmoScene.add(gizmo);
 
 // ── Cube Constants, Materials, and Build Logic --------------------------------
 const CUBE_SIZE = 3, CUBIE_WIDTH = 1, CUBIE_SPACING = 0.05, STEP = CUBIE_WIDTH + CUBIE_SPACING, HALF_IDX = (CUBE_SIZE - 1) / 2;
@@ -65,6 +64,8 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
             const mats = [pos.x > 0.1 ? faceMats[0] : blackMat, pos.x < -0.1 ? faceMats[1] : blackMat, pos.y > 0.1 ? faceMats[2] : blackMat, pos.y < -0.1 ? faceMats[3] : blackMat, pos.z > 0.1 ? faceMats[4] : blackMat, pos.z < -0.1 ? faceMats[5] : blackMat];
             const mesh = new THREE.Mesh(new RoundedBoxGeometry(CUBIE_WIDTH, CUBIE_WIDTH, CUBIE_WIDTH, 4, 0.1), mats);
             mesh.position.copy(pos);
+            mesh.userData.initialPosition = pos.clone();
+            mesh.userData.initialQuaternion = mesh.quaternion.clone();
             cubies.push(mesh);
             rubiksCube.add(mesh);
         }
@@ -73,24 +74,15 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
 
 // ── Systematic Rotation Definitions -----------------------------------------
 const ROTATIONS = {
-    'R+': { name: 'R+', axis: 'x', coord: STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
-    'R-': { name: 'R-', axis: 'x', coord: STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
-    'L+': { name: 'L+', axis: 'x', coord: -STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
-    'L-': { name: 'L-', axis: 'x', coord: -STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
-    'M+': { name: 'M+', axis: 'x', coord: 0, dir: 1, desc: '(x, y, z) → (x, z, -y)' },
-    'M-': { name: 'M-', axis: 'x', coord: 0, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
-    'U+': { name: 'U+', axis: 'y', coord: STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
-    'U-': { name: 'U-', axis: 'y', coord: STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'D+': { name: 'D+', axis: 'y', coord: -STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
-    'D-': { name: 'D-', axis: 'y', coord: -STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'E+': { name: 'E+', axis: 'y', coord: 0, dir: -1, desc: '(x, y, z) → (z, y, -x)' },
-    'E-': { name: 'E-', axis: 'y', coord: 0, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
-    'F+': { name: 'F+', axis: 'z', coord: STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
-    'F-': { name: 'F-', axis: 'z', coord: STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
-    'B+': { name: 'B+', axis: 'z', coord: -STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
-    'B-': { name: 'B-', axis: 'z', coord: -STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
-    'S+': { name: 'S+', axis: 'z', coord: 0, dir: -1, desc: '(x, y, z) → (-y, x, z)' },
-    'S-': { name: 'S-', axis: 'z', coord: 0, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
+    'R+': { name: 'R+', axis: 'x', coord: STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' }, 'R-': { name: 'R-', axis: 'x', coord: STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
+    'L+': { name: 'L+', axis: 'x', coord: -STEP, dir: 1, desc: '(x, y, z) → (x, z, -y)' }, 'L-': { name: 'L-', axis: 'x', coord: -STEP, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
+    'M+': { name: 'M+', axis: 'x', coord: 0, dir: 1, desc: '(x, y, z) → (x, z, -y)' }, 'M-': { name: 'M-', axis: 'x', coord: 0, dir: -1, desc: '(x, y, z) → (x, -z, y)' },
+    'U+': { name: 'U+', axis: 'y', coord: STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' }, 'U-': { name: 'U-', axis: 'y', coord: STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
+    'D+': { name: 'D+', axis: 'y', coord: -STEP, dir: -1, desc: '(x, y, z) → (z, y, -x)' }, 'D-': { name: 'D-', axis: 'y', coord: -STEP, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
+    'E+': { name: 'E+', axis: 'y', coord: 0, dir: -1, desc: '(x, y, z) → (z, y, -x)' }, 'E-': { name: 'E-', axis: 'y', coord: 0, dir: 1, desc: '(x, y, z) → (-z, y, x)' },
+    'F+': { name: 'F+', axis: 'z', coord: STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' }, 'F-': { name: 'F-', axis: 'z', coord: STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
+    'B+': { name: 'B+', axis: 'z', coord: -STEP, dir: -1, desc: '(x, y, z) → (-y, x, z)' }, 'B-': { name: 'B-', axis: 'z', coord: -STEP, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
+    'S+': { name: 'S+', axis: 'z', coord: 0, dir: -1, desc: '(x, y, z) → (-y, x, z)' }, 'S-': { name: 'S-', axis: 'z', coord: 0, dir: 1, desc: '(x, y, z) → (y, -x, z)' },
 };
 const ROTATION_SEQUENCE = [
     ROTATIONS['L+'], ROTATIONS['L-'], ROTATIONS['M+'], ROTATIONS['M-'], ROTATIONS['R+'], ROTATIONS['R-'],
@@ -104,6 +96,8 @@ const hudCubeState = document.getElementById('hud-cube-state');
 const playPauseBtn = document.getElementById('play-pause-btn');
 const manualControlsContainer = document.getElementById('manual-controls');
 const randomizeBtn = document.getElementById('randomize-btn');
+const solveBtn = document.getElementById('solve-btn');
+const resetBtn = document.getElementById('reset-btn');
 
 function updateHudState() {
     let stateText = '';
@@ -126,18 +120,8 @@ function logFullCubeState(label) {
 // ── Input Logging -------------------------------------------------------------
 const pointerDown = new THREE.Vector2();
 const CLICK_TOLERANCE = 5;
-
-renderer.domElement.addEventListener('mousedown', e => {
-    console.log(`Mousedown at (${e.clientX}, ${e.clientY})`);
-    pointerDown.set(e.clientX, e.clientY);
-});
-renderer.domElement.addEventListener('mouseup', e => {
-    console.log(`Mouseup at (${e.clientX}, ${e.clientY})`);
-    const up = new THREE.Vector2(e.clientX, e.clientY);
-    if (pointerDown.distanceTo(up) >= CLICK_TOLERANCE) {
-        console.log(`Drag from(${pointerDown.x}, ${pointerDown.y}) → (${e.clientX}, ${e.clientY})`);
-    }
-});
+renderer.domElement.addEventListener('mousedown', e => { console.log(`Mousedown at (${e.clientX}, ${e.clientY})`); pointerDown.set(e.clientX, e.clientY); });
+renderer.domElement.addEventListener('mouseup', e => { console.log(`Mouseup at (${e.clientX}, ${e.clientY})`); const up = new THREE.Vector2(e.clientX, e.clientY); if (pointerDown.distanceTo(up) >= CLICK_TOLERANCE) { console.log(`Drag from(${pointerDown.x}, ${pointerDown.y}) → (${e.clientX}, ${e.clientY})`); } });
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Helpers -------------------------------------------------------------------
@@ -217,6 +201,8 @@ function updateManualControlsState() {
         btn.disabled = !isPaused || isAnimating;
     }
     randomizeBtn.disabled = !isPaused || isAnimating;
+    solveBtn.disabled = !isPaused || isAnimating;
+    resetBtn.disabled = isAnimating;
 }
 
 playPauseBtn.addEventListener('click', () => {
@@ -240,7 +226,7 @@ playPauseBtn.addEventListener('click', () => {
 });
 
 manualControlsContainer.addEventListener('click', (event) => {
-    if (event.target.tagName !== 'BUTTON' || event.target.id === 'randomize-btn' || !isPaused || isAnimating) return;
+    if (event.target.tagName !== 'BUTTON' || !isPaused || isAnimating) return;
     const moveId = event.target.id.replace('btn-', '');
     const move = ROTATIONS[moveId];
     if (!move) return;
@@ -256,6 +242,23 @@ manualControlsContainer.addEventListener('click', (event) => {
         isPaused = true;
         updateManualControlsState();
     });
+});
+
+resetBtn.addEventListener('click', () => {
+    if (isAnimating) return;
+    console.log("--- Reset Triggered ---");
+    TWEEN.removeAll();
+    clearTimeout(nextMoveTimeoutId);
+    cubies.forEach(c => {
+        c.position.copy(c.userData.initialPosition);
+        c.quaternion.copy(c.userData.initialQuaternion);
+    });
+    isAnimating = false;
+    isPaused = true;
+    playPauseBtn.textContent = '▶️';
+    hudMoveInfo.textContent = "Cube Reset. Paused.";
+    logFullCubeState("After Reset");
+    updateManualControlsState();
 });
 
 // ── Randomizer Logic ------------------------------------------------------------
@@ -331,11 +334,8 @@ function animate() {
     // Render main scene
     renderer.render(scene, camera);
 
-    // Render Gizmo
-    const gizmoRotation = new THREE.Quaternion();
-    camera.getWorldQuaternion(gizmoRotation);
-    gizmo.quaternion.copy(gizmoRotation).invert();
-
+    // --- MODIFIED: Corrected Gizmo Logic ---
+    gizmo.quaternion.copy(camera.quaternion).invert();
     gizmoRenderer.render(gizmoScene, gizmoCamera);
 }
 
