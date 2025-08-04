@@ -218,17 +218,39 @@ const hudMoveInfo   = document.getElementById('hud-move-info');
 const hudCubeState  = document.getElementById('hud-cube-state');
 const playPauseBtn  = document.getElementById('play-pause-btn');
 const randomizeBtn  = document.getElementById('randomize-btn');
+const solveBtn      = document.getElementById('solve-btn');
 const resetBtn      = document.getElementById('reset-btn');
 const manualCtrls   = document.getElementById('manual-controls');
 
-// 📝 Add log button to HUD (right of play/pause)
+// insert the state‐indices <pre> above the buttons row
+const stateLine = document.createElement('pre');
+stateLine.id = 'hud-state-indices';
+Object.assign(stateLine.style, {
+  margin: '0.5em 0',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  fontSize: '0.75em',
+  maxWidth: '100%'
+});
+const controlsRow = playPauseBtn.parentNode;
+controlsRow.parentNode.insertBefore(stateLine, controlsRow);
+
+// make the buttons row a full‐width flex container
+Object.assign(controlsRow.style, {
+  clear: 'both',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  gap: '0.5em',
+  flexWrap: 'wrap'
+});
+
+// add the log button to that row
 const logBtn = document.createElement('button');
 logBtn.id          = 'log-btn';
 logBtn.textContent = '📝';
-logBtn.title       = 'Generate 20,000‐move cube_log.jsonl';
-logBtn.style.marginLeft = '0.5em';
+logBtn.title       = 'Generate 20,000-move cube_log.jsonl';
 logBtn.disabled    = true;
-playPauseBtn.parentNode.appendChild(logBtn);
+controlsRow.appendChild(logBtn);
 
 function updateHudState() {
   let txt = '';
@@ -236,13 +258,14 @@ function updateHudState() {
     const p = c.position;
     txt += `Cubie ${ String(i).padStart(2) }: Pos(${ p.x.toFixed(2) }, ${ p.y.toFixed(2) }, ${ p.z.toFixed(2) }) \n`;
   });
-  hudCubeState.textContent = txt;
+  hudCubeState.textContent    = txt;
+  stateLine.textContent       = `state: [${ getState().join(',') }]`;
 }
 
 function logFullCubeState(label) {
   console.group(label);
   cubies.forEach((c,i)=>{
-    const p=c.position, q=c.quaternion;
+    const p = c.position, q = c.quaternion;
     console.log(
       `Cubie ${ i }: Pos(${ p.x.toFixed(2) }, ${ p.y.toFixed(2) }, ${ p.z.toFixed(2) }) `+
       `Quat(${ q.x.toFixed(2) }, ${ q.y.toFixed(2) }, ${ q.z.toFixed(2) }, ${ q.w.toFixed(2) })`
@@ -251,23 +274,20 @@ function logFullCubeState(label) {
   console.groupEnd();
 }
 
-// ── Generate 20,000‐move Log ─────────────────────────────────────────────────
+// ── Logging Button Handler ───────────────────────────────────────────────────
 logBtn.addEventListener('click', async ()=>{
   try {
-    const dirHandle = await window.showDirectoryPicker();
+    const dirHandle  = await window.showDirectoryPicker();
     const fileHandle = await dirHandle.getFileHandle('cube_log.jsonl',{create:true});
-    const stream = await fileHandle.createWritable({keepExistingData:false});
+    const stream     = await fileHandle.createWritable({keepExistingData:false});
 
-    // initial state
     await stream.write(JSON.stringify({move:null, state:getState()}) + '\n');
-
     for(let i=0; i<20000; i++){
       const m = ROTATION_SEQUENCE[Math.floor(Math.random()*ROTATION_SEQUENCE.length)];
       applyMoveInstant(m);
       await stream.write(JSON.stringify({move:m.desc, state:getState()}) + '\n');
       if((i+1)%1000===0) console.log(`Logged ${ i + 1 } moves…`);
     }
-
     await stream.close();
     alert('cube_log.jsonl generation complete.');
   } catch(err) {
@@ -276,9 +296,9 @@ logBtn.addEventListener('click', async ()=>{
   }
 });
 
-// ── Rotation Logic & Sequencer ───────────────────────────────────────────────
+// ── Rotation & Animation Logic ───────────────────────────────────────────────
 let isAnimating = false, isPaused = false, pauseAfter = false;
-let nextTimeoutId = null, rotationIdx = 0;
+let rotationIdx = 0, nextTimeoutId = null;
 
 function updateControls() {
   manualCtrls.querySelectorAll('button').forEach(b=>{
@@ -291,11 +311,10 @@ function updateControls() {
 }
 
 function rotateSlice(axis, coord, dir, duration, onComplete, desc) {
-  isAnimating = true;
-  updateControls();
+  isAnimating = true; updateControls();
   hudMoveInfo.textContent = desc;
 
-  const slice  = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
+  const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
   const centre = (() => {
     const sum = new THREE.Vector3();
     slice.forEach(c => sum.add(c.position));
@@ -308,23 +327,24 @@ function rotateSlice(axis, coord, dir, duration, onComplete, desc) {
     axis==='y'?1:0,
     axis==='z'?1:0
   );
-  slice.forEach(c => {
-    c._prePos = c.position.clone();
+
+  slice.forEach(c =>{
+    c._prePos  = c.position.clone();
     c._preQuat = c.quaternion.clone();
   });
 
-  new TWEEN.Tween({ t: 0 })
-    .to({ t: 1 }, duration)
+  new TWEEN.Tween({t:0})
+    .to({t:1}, duration)
     .easing(TWEEN.Easing.Quadratic.InOut)
-    .onUpdate(({ t }) => {
+    .onUpdate(({t})=>{
       const dq = new THREE.Quaternion().setFromAxisAngle(normal, dir * t * Math.PI/2);
-      slice.forEach(c => {
+      slice.forEach(c=>{
         c.position.copy(c._prePos).sub(centre).applyQuaternion(dq).add(centre);
         c.quaternion.copy(c._preQuat).premultiply(dq);
       });
     })
-    .onComplete(() => {
-      slice.forEach(c => {
+    .onComplete(()=>{
+      slice.forEach(c=>{
         c.position.set(
           Math.round(c.position.x/STEP)*STEP,
           Math.round(c.position.y/STEP)*STEP,
@@ -335,41 +355,36 @@ function rotateSlice(axis, coord, dir, duration, onComplete, desc) {
         e.y = Math.round(e.y/(Math.PI/2))*(Math.PI/2);
         e.z = Math.round(e.z/(Math.PI/2))*(Math.PI/2);
         c.quaternion.setFromEuler(e);
-        delete c._prePos;
-        delete c._preQuat;
+        delete c._prePos; delete c._preQuat;
       });
 
       isAnimating = false;
-      if (pauseAfter) {
-        isPaused = true;
-        pauseAfter = false;
-      }
-
+      if(pauseAfter){ isPaused=true; pauseAfter=false; }
       logFullCubeState(`After ${ desc } `);
       updateHudState();
       updateControls();
-      if (onComplete) onComplete();
+      if(onComplete) onComplete();
     })
     .start();
 }
 
 function runNextRotation() {
-  if (!isPaused) {
+  if(!isPaused) {
     const m = ROTATION_SEQUENCE[rotationIdx++];
-    if (rotationIdx >= ROTATION_SEQUENCE.length) rotationIdx = 0;
-    rotateSlice(m.axis, m.coord, m.dir, DURATION_ROTATE, () => {
-      setTimeout(runNextRotation, DURATION_PAUSE);
+    if(rotationIdx >= ROTATION_SEQUENCE.length) rotationIdx=0;
+    rotateSlice(m.axis,m.coord,m.dir,DURATION_ROTATE,()=>{
+      nextTimeoutId = setTimeout(runNextRotation, DURATION_PAUSE);
     }, m.desc);
   }
 }
 
-playPauseBtn.addEventListener('click', () => {
-  if (isAnimating) {
+playPauseBtn.addEventListener('click', ()=>{
+  if(isAnimating){
     pauseAfter = true;
     playPauseBtn.textContent = '▶️';
   } else {
     isPaused = !isPaused;
-    if (isPaused) {
+    if(isPaused){
       clearTimeout(nextTimeoutId);
       playPauseBtn.textContent = '▶️';
     } else {
@@ -380,76 +395,75 @@ playPauseBtn.addEventListener('click', () => {
   updateControls();
 });
 
-manualCtrls.addEventListener('click', e => {
-  if (e.target.tagName !== 'BUTTON' || !isPaused || isAnimating) return;
-  const name = e.target.id.replace('btn-', '');
+manualCtrls.addEventListener('click', e=>{
+  if(e.target.tagName!=='BUTTON' || !isPaused || isAnimating) return;
+  const name = e.target.id.replace('btn-','');
   const m = ROTATIONS[name];
-  if (!m) return;
+  if(!m) return;
   isPaused = false;
-  rotateSlice(m.axis, m.coord, m.dir, DURATION_ROTATE, () => {
+  rotateSlice(m.axis,m.coord,m.dir,DURATION_ROTATE,()=>{
     isPaused = true;
     updateControls();
   }, m.desc);
 });
 
-// ── Scramble (20 moves) ───────────────────────────────────────────────────────
-randomizeBtn.addEventListener('click', () => {
-  if (!isPaused || isAnimating) return;
+randomizeBtn.addEventListener('click', ()=>{
+  if(!isPaused || isAnimating) return;
   isPaused = false;
   let last = null, seq = [];
-  for (let i = 0; i < 20; i++) {
+  for(let i=0; i<20; i++){
     let pick;
     do {
       pick = ROTATION_SEQUENCE[Math.floor(Math.random()*ROTATION_SEQUENCE.length)];
-    } while (last && pick.desc[0] === last[0] && pick.desc[1] !== last[1]);
+    } while(last && pick.desc[0] === last[0] && pick.desc[1] !== last[1]);
     seq.push(pick);
     last = pick.desc;
   }
   let i = 0;
-  (function step() {
+  (function step(){
     const m = seq[i++];
-    rotateSlice(m.axis, m.coord, m.dir, DURATION_RANDOM_ROTATE, () => {
-      if (i < seq.length) {
-        setTimeout(step, DURATION_RANDOM_PAUSE);
-      } else {
-        isPaused = true;
-        updateControls();
-      }
+    rotateSlice(m.axis,m.coord,m.dir,DURATION_RANDOM_ROTATE,()=>{
+      if(i < seq.length) setTimeout(step, DURATION_RANDOM_PAUSE);
+      else { isPaused = true; updateControls(); }
     }, m.desc);
   })();
 });
 
-// ── Reset ────────────────────────────────────────────────────────────────────
-resetBtn.addEventListener('click', () => {
-  if (isAnimating) return;
+resetBtn.addEventListener('click', ()=>{
+  if(isAnimating) return;
+
   TWEEN.removeAll();
   clearTimeout(nextTimeoutId);
-  cubies.forEach(c => {
+
+  cubies.forEach(c=>{
     c.position.copy(c.userData.initialPosition);
     c.quaternion.copy(c.userData.initialQuaternion);
   });
+
   isPaused = true;
   playPauseBtn.textContent = '▶️';
-  hudMoveInfo.textContent   = 'Reset';
+  hudMoveInfo.textContent = 'Reset';
   logFullCubeState('After Reset');
   updateHudState();
   updateControls();
 });
 
 // ── Animation Loop & Resize ───────────────────────────────────────────────────
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
-  if (!isPaused) TWEEN.update();
+  if(!isPaused) TWEEN.update();
   controls.update();
   renderer.render(scene, camera);
+
   gizmo.quaternion.copy(camera.quaternion).invert();
   gizmoRenderer.render(gizmoScene, gizmoCamera);
 }
 
-window.addEventListener('resize', () => {
+window.addEventListener('resize', ()=>{
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+
   gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
   gizmoCamera.updateProjectionMatrix();
 });
@@ -458,6 +472,7 @@ window.addEventListener('resize', () => {
 logFullCubeState('Initial State');
 updateHudState();
 animate();
+
 playPauseBtn.textContent = '⏸️';
 updateControls();
 runNextRotation();
