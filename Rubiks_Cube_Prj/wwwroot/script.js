@@ -71,7 +71,30 @@ const axisLen = 1.5, headLen = 0.5, headWid = 0.35;
         axisLen, col, headLen, headWid
     ));
 });
+
+// ADDED: Differentiating spheres for the positive axes
+const sphereRadius = headWid / 1.8; // Slightly smaller than cone width for aesthetics
+const sphereDist = axisLen + sphereRadius + 0.1; // Position past the arrow tip with a small gap
+
+const sphereGeo = new THREE.SphereGeometry(sphereRadius, 16, 16);
+
+// Red sphere for +X (Right face)
+const sphereR = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0xcc2222 }));
+sphereR.position.set(sphereDist, 0, 0);
+gizmo.add(sphereR);
+
+// Blue sphere for +Y (Up face)
+const sphereU = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x2222cc }));
+sphereU.position.set(0, sphereDist, 0);
+gizmo.add(sphereU);
+
+// Green sphere for +Z (Front face)
+const sphereF = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x22cc22 }));
+sphereF.position.set(0, 0, sphereDist);
+gizmo.add(sphereF);
+
 gizmoScene.add(gizmo);
+
 
 // ── Cube Constants & Build Logic ─────────────────────────────────────────────
 const CUBE_SIZE = 3, CUBIE_W = 1, CUBIE_S = 0.05;
@@ -296,7 +319,6 @@ logBtn.addEventListener('click', async () => {
         for (let i = 0; i < 20000; i++) {
             const m = SEQ[Math.floor(Math.random() * SEQ.length)];
             instantRotate(m);
-            // rotateFacelets(m); // This is now handled inside instantRotate
 
             const ci = getState();
             const fci = computeFCState(ci);
@@ -523,8 +545,6 @@ window.addEventListener('resize', () => {
 logFull('Initial State');
 updateHUD();
 animate();
-playBtn.textContent = '▶️';
+playBtn.textContent = '⏸️';
 updateControls();
- isPaused = false;
- playBtn.textContent = '⏸️';
- runNext();
+runNext();
