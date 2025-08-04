@@ -12,7 +12,6 @@
         <div id="hud-cube-state"></div>
         <div id="hud-controls">
             <button id="play-pause-btn">⏸️</button>
-            <!-- NEW: Added Solve and Reset buttons -->
             <button id="solve-btn">🔀</button>
             <button id="reset-btn">↪️</button>
             <button id="randomize-btn">🔄</button>
@@ -21,23 +20,26 @@
 
     <div id="manual-controls">
         <div id="gizmo-container"></div>
+
         <div class="control-group">
             <div class="control-label axis-x">X-Axis</div>
-            <div class="control-row"><span>L</span><button id="btn-L+">+</button><button id="btn-L-">-</button></div>
-            <div class="control-row"><span>M</span><button id="btn-M+">+</button><button id="btn-M-">-</button></div>
-            <div class="control-row"><span>R</span><button id="btn-R+">+</button><button id="btn-R-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">L</span><button id="btn-L+">+</button><button id="btn-L-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">M</span><button id="btn-M+">+</button><button id="btn-M-">-</button></div>
+            <div class="control-row"><span class="indicator sphere-red"></span><span class="label">R</span><button id="btn-R+">+</button><button id="btn-R-">-</button></div>
         </div>
+
         <div class="control-group">
             <div class="control-label axis-y">Y-Axis</div>
-            <div class="control-row"><span>D</span><button id="btn-D+">+</button><button id="btn-D-">-</button></div>
-            <div class="control-row"><span>E</span><button id="btn-E+">+</button><button id="btn-E-">-</button></div>
-            <div class="control-row"><span>U</span><button id="btn-U+">+</button><button id="btn-U-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">D</span><button id="btn-D+">+</button><button id="btn-D-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">E</span><button id="btn-E+">+</button><button id="btn-E-">-</button></div>
+            <div class="control-row"><span class="indicator sphere-blue"></span><span class="label">U</span><button id="btn-U+">+</button><button id="btn-U-">-</button></div>
         </div>
+
         <div class="control-group">
             <div class="control-label axis-z">Z-Axis</div>
-            <div class="control-row"><span>B</span><button id="btn-B+">+</button><button id="btn-B-">-</button></div>
-            <div class="control-row"><span>S</span><button id="btn-S+">+</button><button id="btn-S-">-</button></div>
-            <div class="control-row"><span>F</span><button id="btn-F+">+</button><button id="btn-F-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">B</span><button id="btn-B+">+</button><button id="btn-B-">-</button></div>
+            <div class="control-row"><span class="indicator"></span><span class="label">S</span><button id="btn-S+">+</button><button id="btn-S-">-</button></div>
+            <div class="control-row"><span class="indicator sphere-green"></span><span class="label">F</span><button id="btn-F+">+</button><button id="btn-F-">-</button></div>
         </div>
     </div>
 

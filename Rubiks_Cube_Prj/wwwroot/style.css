@@ -47,7 +47,7 @@
     justify-content: center;
     gap: 1.5vw;
 }
-/* MODIFIED: Selector now includes all four buttons */
+
 #play-pause-btn, #randomize-btn, #solve-btn, #reset-btn {
     font-size: 2vw;
     background: none;
@@ -66,7 +66,7 @@
     border-radius: 5px;
     display: flex;
     align-items: center;
-    gap: 1vw;
+    gap: 1.5vw;
     z-index: 10;
 }
 
@@ -89,6 +89,7 @@
     font-weight: bold;
     border-bottom: 1px solid #888;
     margin-bottom: 0.5vw;
+    padding: 0 0.5vw;
 }
 
 .axis-x {
@@ -109,12 +110,47 @@
     gap: 0.5vw;
 }
 
-    .control-row span {
+    .control-row .indicator {
+        display: inline-block;
+        width: 1vw;
+        height: 1vw;
+        border-radius: 50%;
+    }
+
+    .control-row .sphere-red {
+        background-color: #cc2222;
+    }
+
+    .control-row .sphere-blue {
+        background-color: #2222cc;
+    }
+
+    .control-row .sphere-green {
+        background-color: #22cc22;
+    }
+
+    .control-row .label {
         font-family: monospace;
         font-size: 1.2vw;
         width: 1.5vw;
         text-align: center;
+        font-weight: bold;
+        color: black;
     }
+
+    /* ADDED: Color the R, U, and F labels specifically */
+    .control-row .sphere-red + .label {
+        color: #cc2222;
+    }
+
+    .control-row .sphere-blue + .label {
+        color: #2222cc;
+    }
+
+    .control-row .sphere-green + .label {
+        color: #22cc22;
+    }
+
 
     .control-row button {
         font-size: 1.2vw;
@@ -122,7 +158,7 @@
         height: 2.5vw;
         cursor: pointer;
     }
-        /* MODIFIED: Selector now includes all buttons that can be disabled */
+
         .control-row button:disabled, #randomize-btn:disabled, #solve-btn:disabled, #reset-btn:disabled {
             cursor: not-allowed;
             opacity: 0.5;
