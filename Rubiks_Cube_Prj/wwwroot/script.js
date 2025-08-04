@@ -312,7 +312,7 @@ logBtn.addEventListener('click', async () => {
 });
 
 // ── Rotation & Animation ─────────────────────────────────────────────────────
-let isAnimating = false, isPaused = true, pauseAfter = false;
+let isAnimating = false, isPaused = false, pauseAfter = false;
 let nextId, rotIdx = 0;
 
 function updateControls() {
@@ -525,8 +525,6 @@ updateHUD();
 animate();
 playBtn.textContent = '▶️';
 updateControls();
-// The original script started with an animation sequence, this version will start paused.
-// To revert to the auto-play on load, uncomment the following lines:
-// isPaused = false;
-// playBtn.textContent = '⏸️';
-// runNext();
+ isPaused = false;
+ playBtn.textContent = '⏸️';
+ runNext();
