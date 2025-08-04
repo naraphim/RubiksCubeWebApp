@@ -15,12 +15,7 @@ const DURATION_RANDOM_PAUSE  = 50;
 const scene    = new THREE.Scene();
 scene.background = new THREE.Color(0x333333);
 
-const camera   = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+const camera   = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 0, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -142,6 +137,14 @@ for (let xi = 0; xi < CUBE_SIZE; xi++) {
   }
 }
 
+// ── Build initialMap: pos-string → slot index ────────────────────────────────
+const initialMap = new Map();
+cubies.forEach((c, i) => {
+  const p = c.userData.initialPosition;
+  const key = `${ p.x.toFixed(2) },${ p.y.toFixed(2) },${ p.z.toFixed(2) } `;
+  initialMap.set(key, i);
+});
+
 // ── Rotation Definitions ─────────────────────────────────────────────────────
 const ROTATIONS = {
   'R+': { axis:'x', coord: STEP, dir:  1, desc:'R+' },
@@ -167,53 +170,41 @@ const ROTATIONS = {
 };
 const ROTATION_SEQUENCE = Object.values(ROTATIONS);
 
-// ── State‐mapping for Logging ─────────────────────────────────────────────────
-const initialMap = new Map(
-  cubies.map((c,i) => {
-    const p = c.userData.initialPosition;
-    return [`${ p.x.toFixed(2) },${ p.y.toFixed(2) },${ p.z.toFixed(2) } `, i];
-  })
-);
+// ── Helpers: c_state & f_State ────────────────────────────────────────────────
+
+// build 26-entry c_state[cubie] = slot
 function getState() {
   return cubies.map(c => {
     const p = c.position;
-    return initialMap.get(`${ p.x.toFixed(2) },${ p.y.toFixed(2) },${ p.z.toFixed(2) } `);
+    const key = `${ p.x.toFixed(2) },${ p.y.toFixed(2) },${ p.z.toFixed(2) } `;
+    return initialMap.get(key);
   });
 }
 
-// ── Instant Move (for logging) ───────────────────────────────────────────────
-function applyMoveInstant(m) {
-  const slice = cubies.filter(c => Math.abs(c.position[m.axis] - m.coord) < 0.1);
-  const centre = (() => {
-    const sum = new THREE.Vector3();
-    slice.forEach(c => sum.add(c.position));
-    sum.multiplyScalar(1 / slice.length);
-    sum[m.axis] = slice[0].position[m.axis];
-    return sum;
-  })();
-  const normal = new THREE.Vector3(
-    m.axis==='x'?1:0,
-    m.axis==='y'?1:0,
-    m.axis==='z'?1:0
-  );
-  const dq = new THREE.Quaternion().setFromAxisAngle(normal, m.dir * Math.PI/2);
-  slice.forEach(c => {
-    c.position.sub(centre).applyQuaternion(dq).add(centre);
-    c.position.set(
-      Math.round(c.position.x/STEP)*STEP,
-      Math.round(c.position.y/STEP)*STEP,
-      Math.round(c.position.z/STEP)*STEP
-    );
-    c.quaternion.premultiply(dq);
-    const e = new THREE.Euler().setFromQuaternion(c.quaternion,'XYZ');
-    e.x = Math.round(e.x/(Math.PI/2))*(Math.PI/2);
-    e.y = Math.round(e.y/(Math.PI/2))*(Math.PI/2);
-    e.z = Math.round(e.z/(Math.PI/2))*(Math.PI/2);
-    c.quaternion.setFromEuler(e);
-  });
+// facelet→slot mapping for f_State
+const FACELET_TO_SLOT = [
+  6, 7, 8,  14,15,16,  22,23,24,   // U
+ 17,18,19, 20,21,22,  23,24,25,   // R
+  2, 5, 8,  11,13,16,  19,22,25,   // F
+  0, 1, 2,   9,10,11,  17,18,19,   // D
+  0, 1, 2,   3, 4, 5,   6, 7, 8,   // L
+  0, 3, 6,   9,12,14,  17,20,23    // B
+];
+
+// invert c_state into slot→cubie
+function invertState(c_state) {
+  const slotToCubie = Array(26);
+  c_state.forEach((slot, cubie) => slotToCubie[slot] = cubie);
+  return slotToCubie;
 }
 
-// ── HUD & Controls ──────────────────────────────────────────────────────────
+// build 54-entry f_State
+function computeFState(c_state) {
+  const slotToCubie = invertState(c_state);
+  return FACELET_TO_SLOT.map(slot => slotToCubie[slot]);
+}
+
+// ── HUD & Telemetry Setup ────────────────────────────────────────────────────
 const hudMoveInfo   = document.getElementById('hud-move-info');
 const hudCubeState  = document.getElementById('hud-cube-state');
 const playPauseBtn  = document.getElementById('play-pause-btn');
@@ -222,86 +213,89 @@ const solveBtn      = document.getElementById('solve-btn');
 const resetBtn      = document.getElementById('reset-btn');
 const manualCtrls   = document.getElementById('manual-controls');
 
-// insert the state‐indices <pre> above the buttons row
+// insert c_state line above buttons
 const stateLine = document.createElement('pre');
-stateLine.id = 'hud-state-indices';
-Object.assign(stateLine.style, {
-  margin: '0.5em 0',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
-  fontSize: '0.75em',
-  maxWidth: '100%'
-});
-const controlsRow = playPauseBtn.parentNode;
-controlsRow.parentNode.insertBefore(stateLine, controlsRow);
+stateLine.style.cssText = `
+margin: .5em 0;
+white - space: pre - wrap;
+word -break: break-word;
+font - size: .75em;
+`;
+manualCtrls.parentNode.insertBefore(stateLine, manualCtrls);
 
-// make the buttons row a full‐width flex container
-Object.assign(controlsRow.style, {
-  clear: 'both',
-  display: 'flex',
-  justifyContent: 'flex-start',
-  gap: '0.5em',
-  flexWrap: 'wrap'
-});
+// make button row flex
+manualCtrls.style.cssText = `
+display: flex;
+gap: .5em;
+flex - wrap: wrap;
+`;
 
-// add the log button to that row
+// add 📝 button
 const logBtn = document.createElement('button');
 logBtn.id          = 'log-btn';
 logBtn.textContent = '📝';
 logBtn.title       = 'Generate 20,000-move cube_log.jsonl';
 logBtn.disabled    = true;
-controlsRow.appendChild(logBtn);
+manualCtrls.appendChild(logBtn);
 
 function updateHudState() {
   let txt = '';
-  cubies.forEach((c,i)=>{
+  cubies.forEach((c,i) => {
     const p = c.position;
     txt += `Cubie ${ String(i).padStart(2) }: Pos(${ p.x.toFixed(2) }, ${ p.y.toFixed(2) }, ${ p.z.toFixed(2) }) \n`;
   });
-  hudCubeState.textContent    = txt;
-  stateLine.textContent       = `state: [${ getState().join(',') }]`;
+  hudCubeState.textContent = txt;
+
+  const c_state = getState();
+  stateLine.textContent = `c_state: [${ c_state.join(',') }]`;
 }
 
 function logFullCubeState(label) {
   console.group(label);
-  cubies.forEach((c,i)=>{
+  cubies.forEach((c,i) => {
     const p = c.position, q = c.quaternion;
     console.log(
-      `Cubie ${ i }: Pos(${ p.x.toFixed(2) }, ${ p.y.toFixed(2) }, ${ p.z.toFixed(2) }) `+
+      `Cubie ${ i }: Pos(${ p.x.toFixed(2) }, ${ p.y.toFixed(2) }, ${ p.z.toFixed(2) }) ` +
       `Quat(${ q.x.toFixed(2) }, ${ q.y.toFixed(2) }, ${ q.z.toFixed(2) }, ${ q.w.toFixed(2) })`
     );
   });
   console.groupEnd();
 }
 
-// ── Logging Button Handler ───────────────────────────────────────────────────
-logBtn.addEventListener('click', async ()=>{
+// ── Logging: 20,000 rotations ─────────────────────────────────────────────────
+logBtn.addEventListener('click', async () => {
   try {
     const dirHandle  = await window.showDirectoryPicker();
-    const fileHandle = await dirHandle.getFileHandle('cube_log.jsonl',{create:true});
-    const stream     = await fileHandle.createWritable({keepExistingData:false});
+    const fileHandle = await dirHandle.getFileHandle('cube_log.jsonl', { create: true });
+    const stream     = await fileHandle.createWritable({ keepExistingData: false });
 
-    await stream.write(JSON.stringify({move:null, state:getState()}) + '\n');
-    for(let i=0; i<20000; i++){
-      const m = ROTATION_SEQUENCE[Math.floor(Math.random()*ROTATION_SEQUENCE.length)];
-      applyMoveInstant(m);
-      await stream.write(JSON.stringify({move:m.desc, state:getState()}) + '\n');
-      if((i+1)%1000===0) console.log(`Logged ${ i + 1 } moves…`);
+
+    // write initial record
+    const c0 = getState(), f0 = computeFState(c0);
+    await stream.write(JSON.stringify({ move: null, c_state: c0, f_State: f0 }) + '\n');
+
+    for (let i = 0; i < 20000; i++) {
+      const m = ROTATION_SEQUENCE[Math.floor(Math.random() * ROTATION_SEQUENCE.length)];
+      instantRotate(m);
+      const ci = getState(), fi = computeFState(ci);
+      await stream.write(JSON.stringify({ move: m.desc, c_state: ci, f_State: fi }) + '\n');
+      if ((i + 1) % 1000 === 0) console.log(`Logged ${ i + 1 } moves…`);
     }
+
     await stream.close();
     alert('cube_log.jsonl generation complete.');
-  } catch(err) {
+  } catch (err) {
     console.error('Logging failed:', err);
-    alert('Error: '+err.message);
+    alert('Error: ' + err.message);
   }
 });
 
-// ── Rotation & Animation Logic ───────────────────────────────────────────────
+// ── Rotation & Animation ──────────────────────────────────────────────────────
 let isAnimating = false, isPaused = false, pauseAfter = false;
-let rotationIdx = 0, nextTimeoutId = null;
+let nextTimeoutId, rotationIdx = 0;
 
 function updateControls() {
-  manualCtrls.querySelectorAll('button').forEach(b=>{
+  manualCtrls.querySelectorAll('button').forEach(b => {
     b.disabled = !isPaused || isAnimating;
   });
   randomizeBtn.disabled = !isPaused || isAnimating;
@@ -311,46 +305,40 @@ function updateControls() {
 }
 
 function rotateSlice(axis, coord, dir, duration, onComplete, desc) {
-  isAnimating = true; updateControls();
+  isAnimating = true;
+  updateControls();
   hudMoveInfo.textContent = desc;
 
   const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
-  const centre = (() => {
-    const sum = new THREE.Vector3();
-    slice.forEach(c => sum.add(c.position));
-    sum.multiplyScalar(1 / slice.length);
-    sum[axis] = slice[0].position[axis];
-    return sum;
-  })();
-  const normal = new THREE.Vector3(
-    axis==='x'?1:0,
-    axis==='y'?1:0,
-    axis==='z'?1:0
-  );
+  const centre = slice.reduce((s, c) => s.add(c.position), new THREE.Vector3()).multiplyScalar(1 / slice.length);
+  centre[axis] = slice[0].position[axis];
 
-  slice.forEach(c =>{
-    c._prePos  = c.position.clone();
+  slice.forEach(c => {
+    c._prePos = c.position.clone();
     c._preQuat = c.quaternion.clone();
   });
 
-  new TWEEN.Tween({t:0})
-    .to({t:1}, duration)
+  new TWEEN.Tween({ t: 0 })
+    .to({ t: 1 }, duration)
     .easing(TWEEN.Easing.Quadratic.InOut)
-    .onUpdate(({t})=>{
-      const dq = new THREE.Quaternion().setFromAxisAngle(normal, dir * t * Math.PI/2);
-      slice.forEach(c=>{
+    .onUpdate(({ t }) => {
+      const dq = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(axis==='x'?1:0, axis==='y'?1:0, axis==='z'?1:0),
+        dir * t * Math.PI/2
+      );
+      slice.forEach(c => {
         c.position.copy(c._prePos).sub(centre).applyQuaternion(dq).add(centre);
         c.quaternion.copy(c._preQuat).premultiply(dq);
       });
     })
-    .onComplete(()=>{
-      slice.forEach(c=>{
+    .onComplete(() => {
+      slice.forEach(c => {
         c.position.set(
           Math.round(c.position.x/STEP)*STEP,
           Math.round(c.position.y/STEP)*STEP,
           Math.round(c.position.z/STEP)*STEP
         );
-        const e = new THREE.Euler().setFromQuaternion(c.quaternion,'XYZ');
+        const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'XYZ');
         e.x = Math.round(e.x/(Math.PI/2))*(Math.PI/2);
         e.y = Math.round(e.y/(Math.PI/2))*(Math.PI/2);
         e.z = Math.round(e.z/(Math.PI/2))*(Math.PI/2);
@@ -359,32 +347,32 @@ function rotateSlice(axis, coord, dir, duration, onComplete, desc) {
       });
 
       isAnimating = false;
-      if(pauseAfter){ isPaused=true; pauseAfter=false; }
+      if (pauseAfter) { isPaused = true; pauseAfter = false; }
       logFullCubeState(`After ${ desc } `);
       updateHudState();
       updateControls();
-      if(onComplete) onComplete();
+      if (onComplete) onComplete();
     })
     .start();
 }
 
 function runNextRotation() {
-  if(!isPaused) {
+  if (!isPaused) {
     const m = ROTATION_SEQUENCE[rotationIdx++];
-    if(rotationIdx >= ROTATION_SEQUENCE.length) rotationIdx=0;
-    rotateSlice(m.axis,m.coord,m.dir,DURATION_ROTATE,()=>{
+    if (rotationIdx >= ROTATION_SEQUENCE.length) rotationIdx = 0;
+    rotateSlice(m.axis, m.coord, m.dir, DURATION_ROTATE, () => {
       nextTimeoutId = setTimeout(runNextRotation, DURATION_PAUSE);
     }, m.desc);
   }
 }
 
-playPauseBtn.addEventListener('click', ()=>{
-  if(isAnimating){
+playPauseBtn.addEventListener('click', () => {
+  if (isAnimating) {
     pauseAfter = true;
     playPauseBtn.textContent = '▶️';
   } else {
     isPaused = !isPaused;
-    if(isPaused){
+    if (isPaused) {
       clearTimeout(nextTimeoutId);
       playPauseBtn.textContent = '▶️';
     } else {
@@ -395,51 +383,48 @@ playPauseBtn.addEventListener('click', ()=>{
   updateControls();
 });
 
-manualCtrls.addEventListener('click', e=>{
-  if(e.target.tagName!=='BUTTON' || !isPaused || isAnimating) return;
-  const name = e.target.id.replace('btn-','');
+manualCtrls.addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON' || !isPaused || isAnimating) return;
+  const name = e.target.id.replace('btn-', '');
   const m = ROTATIONS[name];
-  if(!m) return;
+  if (!m) return;
   isPaused = false;
-  rotateSlice(m.axis,m.coord,m.dir,DURATION_ROTATE,()=>{
+  rotateSlice(m.axis, m.coord, m.dir, DURATION_ROTATE, () => {
     isPaused = true;
     updateControls();
   }, m.desc);
 });
 
-randomizeBtn.addEventListener('click', ()=>{
-  if(!isPaused || isAnimating) return;
+randomizeBtn.addEventListener('click', () => {
+  if (!isPaused || isAnimating) return;
   isPaused = false;
   let last = null, seq = [];
-  for(let i=0; i<20; i++){
+  for (let i = 0; i < 20; i++) {
     let pick;
     do {
       pick = ROTATION_SEQUENCE[Math.floor(Math.random()*ROTATION_SEQUENCE.length)];
-    } while(last && pick.desc[0] === last[0] && pick.desc[1] !== last[1]);
+    } while (last && pick.desc[0] === last[0] && pick.desc[1] !== last[1]);
     seq.push(pick);
     last = pick.desc;
   }
   let i = 0;
   (function step(){
     const m = seq[i++];
-    rotateSlice(m.axis,m.coord,m.dir,DURATION_RANDOM_ROTATE,()=>{
-      if(i < seq.length) setTimeout(step, DURATION_RANDOM_PAUSE);
+    rotateSlice(m.axis, m.coord, m.dir, DURATION_RANDOM_ROTATE, () => {
+      if (i < seq.length) setTimeout(step, DURATION_RANDOM_PAUSE);
       else { isPaused = true; updateControls(); }
     }, m.desc);
   })();
 });
 
-resetBtn.addEventListener('click', ()=>{
-  if(isAnimating) return;
-
+resetBtn.addEventListener('click', () => {
+  if (isAnimating) return;
   TWEEN.removeAll();
   clearTimeout(nextTimeoutId);
-
-  cubies.forEach(c=>{
+  cubies.forEach(c => {
     c.position.copy(c.userData.initialPosition);
     c.quaternion.copy(c.userData.initialQuaternion);
   });
-
   isPaused = true;
   playPauseBtn.textContent = '▶️';
   hudMoveInfo.textContent = 'Reset';
@@ -448,22 +433,47 @@ resetBtn.addEventListener('click', ()=>{
   updateControls();
 });
 
+// instantRotate: identical to rotateSlice but no tween (for logging)
+function instantRotate(m) {
+  const { axis, coord, dir } = m;
+  const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
+  const centre = slice.reduce((s, c) => s.add(c.position), new THREE.Vector3()).multiplyScalar(1 / slice.length);
+  centre[axis] = slice[0].position[axis];
+  const quat = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(axis==='x'?1:0,axis==='y'?1:0,axis==='z'?1:0),
+    dir * Math.PI/2
+  );
+  slice.forEach(c => {
+    c.position.copy(c.position).sub(centre).applyQuaternion(quat).add(centre);
+    c.quaternion.premultiply(quat);
+    // snap
+    c.position.set(
+      Math.round(c.position.x/STEP)*STEP,
+      Math.round(c.position.y/STEP)*STEP,
+      Math.round(c.position.z/STEP)*STEP
+    );
+    const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'XYZ');
+    e.x = Math.round(e.x/(Math.PI/2))*(Math.PI/2);
+    e.y = Math.round(e.y/(Math.PI/2))*(Math.PI/2);
+    e.z = Math.round(e.z/(Math.PI/2))*(Math.PI/2);
+    c.quaternion.setFromEuler(e);
+  });
+}
+
 // ── Animation Loop & Resize ───────────────────────────────────────────────────
 function animate(){
   requestAnimationFrame(animate);
-  if(!isPaused) TWEEN.update();
+  if (!isPaused) TWEEN.update();
   controls.update();
   renderer.render(scene, camera);
-
   gizmo.quaternion.copy(camera.quaternion).invert();
   gizmoRenderer.render(gizmoScene, gizmoCamera);
 }
 
-window.addEventListener('resize', ()=>{
+window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-
   gizmoRenderer.setSize(gizmoContainer.clientWidth, gizmoContainer.clientHeight);
   gizmoCamera.updateProjectionMatrix();
 });
@@ -472,7 +482,6 @@ window.addEventListener('resize', ()=>{
 logFullCubeState('Initial State');
 updateHudState();
 animate();
-
 playPauseBtn.textContent = '⏸️';
 updateControls();
 runNextRotation();
