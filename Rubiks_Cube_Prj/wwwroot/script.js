@@ -1,6 +1,4 @@
-﻿// script.js
-
-// ── Imports & Timing Constants ────────────────────────────────────────────────
+﻿// ── Imports & Timing Constants ────────────────────────────────────────────────
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -72,23 +70,19 @@ const axisLen = 1.5, headLen = 0.5, headWid = 0.35;
     ));
 });
 
-// ADDED: Differentiating spheres for the positive axes
-const sphereRadius = headWid / 1.8; // Slightly smaller than cone width for aesthetics
-const sphereDist = axisLen + sphereRadius + 0.1; // Position past the arrow tip with a small gap
+const sphereRadius = headWid / 1.8;
+const sphereDist = axisLen + sphereRadius + 0.1;
 
 const sphereGeo = new THREE.SphereGeometry(sphereRadius, 16, 16);
 
-// Red sphere for +X (Right face)
 const sphereR = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0xcc2222 }));
 sphereR.position.set(sphereDist, 0, 0);
 gizmo.add(sphereR);
 
-// Blue sphere for +Y (Up face)
 const sphereU = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x2222cc }));
 sphereU.position.set(0, sphereDist, 0);
 gizmo.add(sphereU);
 
-// Green sphere for +Z (Front face)
 const sphereF = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x22cc22 }));
 sphereF.position.set(0, 0, sphereDist);
 gizmo.add(sphereF);
@@ -107,11 +101,11 @@ const colors = {
 };
 
 const faceMats = [
-    new THREE.MeshStandardMaterial({ color: colors.red }),
-    new THREE.MeshStandardMaterial({ color: colors.orange }),
     new THREE.MeshStandardMaterial({ color: colors.white }),
-    new THREE.MeshStandardMaterial({ color: colors.yellow }),
+    new THREE.MeshStandardMaterial({ color: colors.red }),
     new THREE.MeshStandardMaterial({ color: colors.blue }),
+    new THREE.MeshStandardMaterial({ color: colors.yellow }),
+    new THREE.MeshStandardMaterial({ color: colors.orange }),
     new THREE.MeshStandardMaterial({ color: colors.green })
 ];
 const blackMat = new THREE.MeshStandardMaterial({ color: colors.black });
@@ -120,7 +114,6 @@ const cubies = [];
 const rubiksCube = new THREE.Group();
 scene.add(rubiksCube);
 
-// build cubies
 for (let x = 0; x < CUBE_SIZE; x++) {
     for (let y = 0; y < CUBE_SIZE; y++) {
         for (let z = 0; z < CUBE_SIZE; z++) {
@@ -129,11 +122,11 @@ for (let x = 0; x < CUBE_SIZE; x++) {
                 (x - HALF) * STEP, (y - HALF) * STEP, (z - HALF) * STEP
             );
             const mats = [
-                pos.x > 0.1 ? faceMats[0] : blackMat,
-                pos.x < -0.1 ? faceMats[1] : blackMat,
-                pos.y > 0.1 ? faceMats[2] : blackMat,
+                pos.x > 0.1 ? faceMats[1] : blackMat,
+                pos.x < -0.1 ? faceMats[4] : blackMat,
+                pos.y > 0.1 ? faceMats[0] : blackMat,
                 pos.y < -0.1 ? faceMats[3] : blackMat,
-                pos.z > 0.1 ? faceMats[4] : blackMat,
+                pos.z > 0.1 ? faceMats[2] : blackMat,
                 pos.z < -0.1 ? faceMats[5] : blackMat
             ];
             const mesh = new THREE.Mesh(
@@ -159,64 +152,77 @@ cubies.forEach((c, i) => {
 
 // ── Rotation Definitions ─────────────────────────────────────────────────────
 const ROTATIONS = {
-    'R+': { axis: 'x', coord: STEP, dir: 1, desc: 'R+' },
-    'R-': { axis: 'x', coord: STEP, dir: -1, desc: 'R-' },
+    'R+': { axis: 'x', coord: STEP, dir: -1, desc: 'R+' },
+    'R-': { axis: 'x', coord: STEP, dir: 1, desc: 'R-' },
     'L+': { axis: 'x', coord: -STEP, dir: 1, desc: 'L+' },
     'L-': { axis: 'x', coord: -STEP, dir: -1, desc: 'L-' },
     'M+': { axis: 'x', coord: 0, dir: 1, desc: 'M+' },
     'M-': { axis: 'x', coord: 0, dir: -1, desc: 'M-' },
-
     'U+': { axis: 'y', coord: STEP, dir: -1, desc: 'U+' },
     'U-': { axis: 'y', coord: STEP, dir: 1, desc: 'U-' },
-    'D+': { axis: 'y', coord: -STEP, dir: -1, desc: 'D+' },
-    'D-': { axis: 'y', coord: -STEP, dir: 1, desc: 'D-' },
-    'E+': { axis: 'y', coord: 0, dir: -1, desc: 'E+' },
-    'E-': { axis: 'y', coord: 0, dir: 1, desc: 'E-' },
-
+    'D+': { axis: 'y', coord: -STEP, dir: 1, desc: 'D+' },
+    'D-': { axis: 'y', coord: -STEP, dir: -1, desc: 'D-' },
+    'E+': { axis: 'y', coord: 0, dir: 1, desc: 'E+' },
+    'E-': { axis: 'y', coord: 0, dir: -1, desc: 'E-' },
     'F+': { axis: 'z', coord: STEP, dir: -1, desc: 'F+' },
     'F-': { axis: 'z', coord: STEP, dir: 1, desc: 'F-' },
-    'B+': { axis: 'z', coord: -STEP, dir: -1, desc: 'B+' },
-    'B-': { axis: 'z', coord: -STEP, dir: 1, desc: 'B-' },
+    'B+': { axis: 'z', coord: -STEP, dir: 1, desc: 'B+' },
+    'B-': { axis: 'z', coord: -STEP, dir: -1, desc: 'B-' },
     'S+': { axis: 'z', coord: 0, dir: -1, desc: 'S+' },
     'S-': { axis: 'z', coord: 0, dir: 1, desc: 'S-' }
 };
 const SEQ = Object.values(ROTATIONS);
 
 // ── Facelet State & Permutation Logic ────────────────────────────────────────
-// f_state[i] = the original sticker index that is currently in position i.
 let f_state = Array.from({ length: 54 }, (_, i) => i);
 
-// Helper to create a new state by applying a permutation to an old state.
+// =================================================================================
+// ▼▼▼ YOUR KNOWLEDGE GOES HERE ▼▼▼
+// =================================================================================
+// For each of the 18 moves below, replace the placeholder array `[...]` with the
+// correct f_state array that results from applying that *one single move* to a
+// solved cube. I have filled in 'L+' with the data you provided as an example.
+// The code will use these to build the correct transformation logic automatically.
+// =================================================================================
+const SINGLE_MOVE_F_STATES = {
+    'L+': [45, 46, 47, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 2, 1, 0, 21, 22, 23, 24, 25, 26, 18, 19, 20, 30, 31, 32, 33, 34, 35, 38, 41, 44, 37, 40, 43, 36, 39, 42, 29, 28, 27, 48, 49, 50, 51, 52, 53],
+    'L-': [20, 19, 18, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 27, 28, 29, 21, 22, 23, 24, 25, 26, 47, 46, 45, 30, 31, 32, 33, 34, 35, 42, 39, 36, 43, 40, 37, 44, 41, 38, 0, 1, 2, 48, 49, 50, 51, 52, 53],
+    'M+': [0, 1, 2, 48, 49, 50, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 5, 4, 3, 24, 25, 26, 27, 28, 29, 21, 22, 23, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 32, 31, 30, 51, 52, 53],
+    'M-': [0, 1, 2, 23, 22, 21, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 30, 31, 32, 24, 25, 26, 27, 28, 29, 50, 49, 48, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 3, 4, 5, 51, 52, 53],
+    'R+': [0, 1, 2, 3, 4, 5, 53, 51, 52, 11, 17, 14, 10, 13, 15, 9, 12, 16, 18, 19, 20, 21, 22, 23, 6, 7, 8, 27, 28, 29, 30, 31, 32, 24, 26, 25, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 35, 34, 33],
+    'R-': [0, 1, 2, 3, 4, 5, 24, 25, 26, 15, 12, 9, 16, 13, 11, 14, 17, 10, 18, 19, 20, 21, 22, 23, 33, 35, 34, 27, 28, 29, 30, 31, 32, 53, 52, 51, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 7, 8, 6],
+    'D+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 45, 48, 51, 12, 13, 14, 15, 16, 17, 11, 19, 20, 10, 22, 23, 9, 25, 26, 29, 32, 35, 28, 31, 34, 27, 30, 33, 18, 21, 24, 39, 40, 41, 42, 43, 44, 38, 46, 47, 37, 49, 50, 36, 52, 53],
+    'D-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 24, 21, 18, 12, 13, 14, 15, 16, 17, 36, 19, 20, 37, 22, 23, 38, 25, 26, 33, 30, 27, 34, 31, 28, 35, 32, 29, 51, 48, 45, 39, 40, 41, 42, 43, 44, 9, 46, 47, 10, 49, 50, 11, 52, 53],
+    'E+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 46, 49, 14, 15, 16, 52, 18, 17, 20, 21, 13, 23, 24, 25, 12, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 19, 22, 26, 42, 43, 44, 45, 41, 47, 48, 40, 50, 51, 39, 53],
+    'E-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 26, 22, 14, 15, 16, 19, 18, 39, 20, 21, 40, 23, 24, 25, 41, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 52, 49, 46, 42, 43, 44, 45, 12, 47, 48, 13, 50, 51, 17, 53],
+    'U+': [2, 5, 6, 1, 4, 8, 7, 0, 3, 9, 10, 11, 12, 13, 53, 47, 50, 17, 18, 19, 14, 21, 22, 16, 24, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 20, 23, 25, 45, 46, 44, 48, 49, 43, 51, 52, 42],
+    'U-': [7, 3, 0, 8, 4, 1, 2, 6, 5, 9, 10, 11, 12, 13, 20, 25, 23, 17, 18, 19, 42, 21, 22, 43, 24, 44, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 53, 50, 47, 45, 46, 15, 48, 49, 16, 51, 52, 14],
+    'B+': [0, 1, 38, 3, 4, 41, 44, 7, 8, 9, 10, 6, 12, 13, 2, 15, 16, 5, 24, 21, 18, 26, 22, 19, 25, 20, 23, 27, 28, 11, 30, 31, 17, 33, 34, 14, 36, 37, 35, 39, 40, 32, 42, 43, 29, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+    'B-': [0, 1, 14, 3, 4, 17, 11, 7, 8, 9, 10, 29, 12, 13, 35, 15, 16, 32, 20, 23, 25, 19, 22, 26, 18, 24, 21, 27, 28, 44, 30, 31, 41, 33, 34, 38, 36, 37, 2, 39, 40, 5, 42, 43, 6, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+    'S+': [0, 37, 2, 3, 40, 5, 6, 7, 43, 9, 8, 11, 12, 4, 14, 15, 1, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 10, 29, 30, 13, 32, 33, 16, 35, 36, 34, 38, 39, 31, 41, 42, 28, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+    'S-': [0, 16, 2, 3, 13, 5, 6, 7, 10, 9, 28, 11, 12, 31, 14, 15, 34, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 43, 29, 30, 40, 32, 33, 37, 35, 36, 1, 38, 39, 4, 41, 42, 8, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+    'F+': [36, 1, 2, 39, 4, 5, 6, 42, 8, 7, 10, 11, 3, 13, 14, 0, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 9, 28, 29, 12, 31, 32, 15, 34, 35, 33, 37, 38, 30, 40, 41, 27, 43, 44, 51, 48, 45, 52, 49, 46, 53, 50, 47],
+    'F-': [15, 1, 2, 12, 4, 5, 6, 9, 8, 27, 10, 11, 30, 13, 14, 33, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 28, 29, 39, 31, 32, 36, 34, 35, 0, 37, 38, 3, 40, 41, 7, 43, 44, 47, 50, 53, 46, 49, 52, 45, 48, 51]
+};
+// =================================================================================
+// ▲▲▲ END OF KNOWLEDGE INPUT SECTION ▲▲▲
+// =================================================================================
+
+
+// This function builds the final PERM object from your knowledge.
+// YOU DO NOT NEED TO EDIT BELOW THIS LINE.
+const PERM = {};
+for (const moveName in SINGLE_MOVE_F_STATES) {
+    // The f_state after one move from solved IS the permutation table.
+    PERM[moveName] = SINGLE_MOVE_F_STATES[moveName];
+}
+
 const applyPerm = (state, perm) => {
     const newState = new Array(54);
     for (let i = 0; i < 54; i++) {
         newState[i] = state[perm[i]];
     }
     return newState;
-};
-
-// These tables map a sticker's destination to its origin for each move.
-// For a move 'M', PERM[M][new_pos] = old_pos.
-// prettier-ignore
-const PERM = {
-    'U+': [6, 3, 0, 7, 4, 1, 8, 5, 2, 38, 37, 36, 12, 13, 14, 15, 16, 17, 11, 10, 9, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 20, 19, 18, 39, 40, 41, 42, 43, 44, 47, 46, 45, 48, 49, 50, 51, 52, 53],
-    'U-': [2, 5, 8, 1, 4, 7, 0, 3, 6, 20, 19, 18, 12, 13, 14, 15, 16, 17, 38, 37, 36, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 47, 46, 45, 39, 40, 41, 42, 43, 44, 11, 10, 9, 48, 49, 50, 51, 52, 53],
-    'R+': [0, 1, 8, 3, 4, 5, 6, 7, 26, 11, 14, 17, 10, 13, 16, 9, 12, 15, 18, 19, 20, 21, 22, 23, 24, 25, 51, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 2, 39, 40, 5, 42, 43, 48, 45, 46, 47, 44, 49, 50, 41, 52, 53],
-    'R-': [0, 1, 38, 3, 4, 41, 6, 7, 8, 15, 12, 9, 16, 13, 10, 17, 14, 11, 18, 19, 20, 21, 22, 23, 24, 25, 2, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 26, 39, 40, 51, 42, 43, 48, 45, 46, 47, 5, 49, 50, 44, 52, 53],
-    'L+': [42, 1, 2, 39, 4, 5, 36, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 44, 41, 38, 43, 40, 37, 6, 3, 0, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'L-': [44, 1, 2, 43, 4, 5, 42, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 3, 40, 41, 0, 43, 44, 6, 45, 46, 39, 48, 49, 50, 51, 52, 53],
-    'F+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 47, 12, 13, 46, 15, 16, 45, 20, 23, 26, 19, 22, 25, 18, 21, 24, 17, 28, 29, 16, 31, 32, 15, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 27, 28, 29, 48, 49, 50, 51, 52, 53],
-    'F-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 29, 12, 13, 28, 15, 16, 27, 24, 21, 18, 25, 22, 19, 26, 23, 20, 45, 28, 29, 46, 31, 32, 47, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 17, 16, 15, 48, 49, 50, 51, 52, 53],
-    'D+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 44, 43, 42, 18, 19, 20, 21, 22, 23, 24, 25, 26, 29, 32, 35, 28, 31, 34, 27, 30, 33, 36, 37, 38, 39, 40, 41, 17, 16, 15, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'D-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 33, 30, 27, 34, 31, 28, 35, 32, 29, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'B+': [53, 1, 2, 52, 4, 5, 51, 7, 8, 3, 10, 11, 0, 13, 14, 6, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 44, 41, 38, 47, 46, 45, 48, 49, 9, 11, 14, 17],
-    'B-': [12, 1, 2, 9, 4, 5, 15, 7, 8, 49, 10, 11, 50, 13, 14, 51, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 44, 39, 40, 41, 43, 42, 45, 47, 46, 3, 5, 0, 48, 6, 2, 8],
-    'M+': [0, 48, 2, 3, 49, 5, 6, 50, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 31, 28, 34, 29, 30, 33, 32, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 1, 4, 7, 51, 52, 53],
-    'M-': [0, 47, 2, 3, 46, 5, 6, 45, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 31, 34, 29, 32, 35, 30, 33, 27, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 1, 4, 7, 48, 49, 50, 51, 52, 53],
-    'E+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 13, 10, 11, 16, 13, 14, 15, 12, 17, 22, 19, 20, 25, 22, 23, 24, 21, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 40, 37, 38, 43, 40, 41, 42, 39, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'E-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 22, 10, 11, 25, 13, 14, 15, 24, 17, 13, 19, 20, 16, 22, 23, 24, 15, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 40, 37, 38, 43, 40, 41, 42, 39, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'S+': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
-    'S-': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
 };
 
 
@@ -229,7 +235,6 @@ function getState() {
     });
 }
 
-// fc_state: “facelet→cubie” (54 entries)
 const FACELET_TO_SLOT = [
     6, 7, 8, 14, 15, 16, 22, 23, 24, 17, 18, 19, 20, 21, 22, 23, 24, 25,
     2, 5, 8, 11, 13, 16, 19, 22, 25, 0, 1, 2, 9, 10, 11, 17, 18, 19,
@@ -255,7 +260,6 @@ const randBtn = document.getElementById('randomize-btn');
 const resetBtn = document.getElementById('reset-btn');
 const mCtrls = document.getElementById('manual-controls');
 
-// inject our new state display into HUD (above the buttons)
 const hudState = document.createElement('pre');
 hudState.id = 'hud-state';
 hudState.style.cssText = `
@@ -265,6 +269,59 @@ hudState.style.cssText = `
   word-break: break-word;
 `;
 hud.insertBefore(hudState, hudControls);
+
+// ── Flat-Net Display Logic ───────────────────────────────────────────────────
+const netPositions = {
+    // White Face (U)
+    0: { r: 1, c: 4 }, 3: { r: 1, c: 5 }, 7: { r: 1, c: 6 },
+    1: { r: 2, c: 4 }, 4: { r: 2, c: 5 }, 8: { r: 2, c: 6 },
+    2: { r: 3, c: 4 }, 5: { r: 3, c: 5 }, 6: { r: 3, c: 6 },
+    // Orange Face (L)
+    36: { r: 6, c: 1 }, 37: { r: 6, c: 2 }, 38: { r: 6, c: 3 },
+    39: { r: 5, c: 1 }, 40: { r: 5, c: 2 }, 41: { r: 5, c: 3 },
+    42: { r: 4, c: 1 }, 43: { r: 4, c: 2 }, 44: { r: 4, c: 3 },
+    // Blue Face (F)
+    18: { r: 6, c: 4 }, 21: { r: 6, c: 5 }, 24: { r: 6, c: 6 },
+    19: { r: 5, c: 4 }, 22: { r: 5, c: 5 }, 26: { r: 5, c: 6 },
+    20: { r: 4, c: 4 }, 23: { r: 4, c: 5 }, 25: { r: 4, c: 6 },
+    // Red Face (R)
+    9: { r: 6, c: 9 }, 10: { r: 6, c: 8 }, 11: { r: 6, c: 7 },
+    12: { r: 5, c: 9 }, 13: { r: 5, c: 8 }, 17: { r: 5, c: 7 },
+    15: { r: 4, c: 9 }, 16: { r: 4, c: 8 }, 14: { r: 4, c: 7 },
+    // Green Face (B)
+    45: { r: 6, c: 12 }, 48: { r: 6, c: 11 }, 51: { r: 6, c: 10 },
+    46: { r: 5, c: 12 }, 49: { r: 5, c: 11 }, 52: { r: 5, c: 10 },
+    47: { r: 4, c: 12 }, 50: { r: 4, c: 11 }, 53: { r: 4, c: 10 },
+    // Yellow Face (D)
+    27: { r: 9, c: 4 }, 30: { r: 9, c: 5 }, 33: { r: 9, c: 6 },
+    28: { r: 8, c: 4 }, 31: { r: 8, c: 5 }, 34: { r: 8, c: 6 },
+    29: { r: 7, c: 4 }, 32: { r: 7, c: 5 }, 35: { r: 7, c: 6 }
+};
+
+
+function renderFlatNet() {
+    const container = document.getElementById('flat-net');
+    container.innerHTML = '';
+
+    for (let i = 0; i < 54; i++) {
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.textContent = f_state[i];
+
+        const pos = netPositions[i];
+        if (pos) {
+            div.style.gridRowStart = pos.r;
+            div.style.gridColumnStart = pos.c;
+        }
+
+        const originalStickerId = f_state[i];
+        const faceGroup = Math.floor(originalStickerId / 9);
+        const mat = faceMats[faceGroup];
+        div.style.backgroundColor = mat.color.getStyle();
+
+        container.appendChild(div);
+    }
+}
 
 // Full-cube console logger
 function logFull(label) {
@@ -281,9 +338,6 @@ function logFull(label) {
 
 // Update HUD text
 function updateHUD() {
-    // move info handled elsewhere
-
-    // cubie positions
     let txt = '';
     cubies.forEach((c, i) => {
         const p = c.position;
@@ -292,17 +346,18 @@ function updateHUD() {
     });
     hudCubeState.textContent = txt;
 
-    // states
     const c_state = getState();
     const fc_state = computeFCState(c_state);
     hudState.textContent =
         `c_state : [${c_state.join(',')}]\n` +
         `fc_state: [${fc_state.join(',')}]\n` +
         `f_state : [${f_state.join(',')}]`;
+
+    renderFlatNet();
 }
 
 // ── Logging 20k moves ─────────────────────────────────────────────────────────
-const logBtn = document.getElementById('solve-btn'); // 📝 button
+const logBtn = document.getElementById('solve-btn');
 logBtn.title = 'Generate 20k cube_log.jsonl';
 logBtn.textContent = '📝';
 logBtn.addEventListener('click', async () => {
@@ -311,7 +366,6 @@ logBtn.addEventListener('click', async () => {
         const fileH = await dirH.getFileHandle('cube_log.jsonl', { create: true });
         const w = await fileH.createWritable({ keepExistingData: false });
 
-        // header
         const c0 = getState();
         const fc0 = computeFCState(c0);
         await w.write(JSON.stringify({ move: null, c_state: c0, fc_state: fc0, f_state }) + '\n');
@@ -338,7 +392,6 @@ let isAnimating = false, isPaused = false, pauseAfter = false;
 let nextId, rotIdx = 0;
 
 function updateControls() {
-    // manual buttons
     mCtrls.querySelectorAll('button').forEach(b => {
         b.disabled = !isPaused || isAnimating;
     });
@@ -394,7 +447,6 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
                 delete c._p; delete c._q;
             });
 
-            // Apply facelet permutation
             const perm = PERM[desc];
             if (perm) {
                 f_state = applyPerm(f_state, perm);
@@ -476,7 +528,6 @@ resetBtn.addEventListener('click', () => {
         c.position.copy(c.userData.initialPosition);
         c.quaternion.copy(c.userData.initialQuaternion);
     });
-    // reset facelets
     f_state = Array.from({ length: 54 }, (_, i) => i);
 
     isPaused = true;
@@ -487,7 +538,6 @@ resetBtn.addEventListener('click', () => {
     updateControls();
 });
 
-// instantRotate for logging
 function instantRotate(m) {
     const { axis, coord, dir } = m;
     const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
@@ -517,7 +567,6 @@ function instantRotate(m) {
         e.z = Math.round(e.z / (Math.PI / 2)) * (Math.PI / 2);
         c.quaternion.setFromEuler(e);
     });
-    // update facelets instantly
     const perm = PERM[m.desc];
     if (perm) {
         f_state = applyPerm(f_state, perm);
