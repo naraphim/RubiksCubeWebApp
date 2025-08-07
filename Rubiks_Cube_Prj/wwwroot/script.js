@@ -1,4 +1,6 @@
-﻿// ── Imports & Timing Constants ────────────────────────────────────────────────
+﻿// script.js
+
+// ── Imports & Timing Constants ────────────────────────────────────────────────
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -22,23 +24,6 @@ document.getElementById('canvas-container').appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-
-// ── Input Logging ───────────────────────────────────────────────────────────
-const pointerDown = new THREE.Vector2();
-const CLICK_TOLERANCE = 5;
-
-renderer.domElement.addEventListener('mousedown', e => {
-    console.log(`Mousedown at (${e.clientX}, ${e.clientY})`);
-    pointerDown.set(e.clientX, e.clientY);
-});
-renderer.domElement.addEventListener('mouseup', e => {
-    console.log(`Mouseup   at (${e.clientX}, ${e.clientY})`);
-    const up = new THREE.Vector2(e.clientX, e.clientY);
-    if (pointerDown.distanceTo(up) >= CLICK_TOLERANCE) {
-        console.log(`Drag from (${pointerDown.x}, ${pointerDown.y}) → (${e.clientX}, ${e.clientY})`);
-    }
-});
-renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 
 // ── Lights ───────────────────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -72,23 +57,17 @@ const axisLen = 1.5, headLen = 0.5, headWid = 0.35;
 
 const sphereRadius = headWid / 1.8;
 const sphereDist = axisLen + sphereRadius + 0.1;
-
 const sphereGeo = new THREE.SphereGeometry(sphereRadius, 16, 16);
-
 const sphereR = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0xcc2222 }));
 sphereR.position.set(sphereDist, 0, 0);
 gizmo.add(sphereR);
-
 const sphereU = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x2222cc }));
 sphereU.position.set(0, sphereDist, 0);
 gizmo.add(sphereU);
-
 const sphereF = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x22cc22 }));
 sphereF.position.set(0, 0, sphereDist);
 gizmo.add(sphereF);
-
 gizmoScene.add(gizmo);
-
 
 // ── Cube Constants & Build Logic ─────────────────────────────────────────────
 const CUBE_SIZE = 3, CUBIE_W = 1, CUBIE_S = 0.05;
@@ -114,6 +93,7 @@ const cubies = [];
 const rubiksCube = new THREE.Group();
 scene.add(rubiksCube);
 
+// Create cubies with fixed "skins" (materials) that will not be changed later.
 for (let x = 0; x < CUBE_SIZE; x++) {
     for (let y = 0; y < CUBE_SIZE; y++) {
         for (let z = 0; z < CUBE_SIZE; z++) {
@@ -122,12 +102,12 @@ for (let x = 0; x < CUBE_SIZE; x++) {
                 (x - HALF) * STEP, (y - HALF) * STEP, (z - HALF) * STEP
             );
             const mats = [
-                pos.x > 0.1 ? faceMats[1] : blackMat,
-                pos.x < -0.1 ? faceMats[4] : blackMat,
-                pos.y > 0.1 ? faceMats[0] : blackMat,
-                pos.y < -0.1 ? faceMats[3] : blackMat,
-                pos.z > 0.1 ? faceMats[2] : blackMat,
-                pos.z < -0.1 ? faceMats[5] : blackMat
+                pos.x > 0.1 ? faceMats[1] : blackMat, // R
+                pos.x < -0.1 ? faceMats[4] : blackMat, // L
+                pos.y > 0.1 ? faceMats[0] : blackMat, // U
+                pos.y < -0.1 ? faceMats[3] : blackMat, // D
+                pos.z > 0.1 ? faceMats[2] : blackMat, // F
+                pos.z < -0.1 ? faceMats[5] : blackMat  // B
             ];
             const mesh = new THREE.Mesh(
                 new RoundedBoxGeometry(CUBIE_W, CUBIE_W, CUBIE_W, 4, 0.1),
@@ -152,38 +132,21 @@ cubies.forEach((c, i) => {
 
 // ── Rotation Definitions ─────────────────────────────────────────────────────
 const ROTATIONS = {
-    'R+': { axis: 'x', coord: STEP, dir: -1, desc: 'R+' },
-    'R-': { axis: 'x', coord: STEP, dir: 1, desc: 'R-' },
-    'L+': { axis: 'x', coord: -STEP, dir: 1, desc: 'L+' },
-    'L-': { axis: 'x', coord: -STEP, dir: -1, desc: 'L-' },
-    'M+': { axis: 'x', coord: 0, dir: 1, desc: 'M+' },
-    'M-': { axis: 'x', coord: 0, dir: -1, desc: 'M-' },
-    'U+': { axis: 'y', coord: STEP, dir: -1, desc: 'U+' },
-    'U-': { axis: 'y', coord: STEP, dir: 1, desc: 'U-' },
-    'D+': { axis: 'y', coord: -STEP, dir: 1, desc: 'D+' },
-    'D-': { axis: 'y', coord: -STEP, dir: -1, desc: 'D-' },
-    'E+': { axis: 'y', coord: 0, dir: 1, desc: 'E+' },
-    'E-': { axis: 'y', coord: 0, dir: -1, desc: 'E-' },
-    'F+': { axis: 'z', coord: STEP, dir: -1, desc: 'F+' },
-    'F-': { axis: 'z', coord: STEP, dir: 1, desc: 'F-' },
-    'B+': { axis: 'z', coord: -STEP, dir: 1, desc: 'B+' },
-    'B-': { axis: 'z', coord: -STEP, dir: -1, desc: 'B-' },
-    'S+': { axis: 'z', coord: 0, dir: -1, desc: 'S+' },
-    'S-': { axis: 'z', coord: 0, dir: 1, desc: 'S-' }
+    'R+': { axis: 'x', coord: STEP, dir: -1, desc: 'R+' }, 'R-': { axis: 'x', coord: STEP, dir: 1, desc: 'R-' },
+    'L+': { axis: 'x', coord: -STEP, dir: 1, desc: 'L+' }, 'L-': { axis: 'x', coord: -STEP, dir: -1, desc: 'L-' },
+    'M+': { axis: 'x', coord: 0, dir: 1, desc: 'M+' }, 'M-': { axis: 'x', coord: 0, dir: -1, desc: 'M-' },
+    'U+': { axis: 'y', coord: STEP, dir: -1, desc: 'U+' }, 'U-': { axis: 'y', coord: STEP, dir: 1, desc: 'U-' },
+    'D+': { axis: 'y', coord: -STEP, dir: 1, desc: 'D+' }, 'D-': { axis: 'y', coord: -STEP, dir: -1, desc: 'D-' },
+    'E+': { axis: 'y', coord: 0, dir: 1, desc: 'E+' }, 'E-': { axis: 'y', coord: 0, dir: -1, desc: 'E-' },
+    'F+': { axis: 'z', coord: STEP, dir: -1, desc: 'F+' }, 'F-': { axis: 'z', coord: STEP, dir: 1, desc: 'F-' },
+    'B+': { axis: 'z', coord: -STEP, dir: 1, desc: 'B+' }, 'B-': { axis: 'z', coord: -STEP, dir: -1, desc: 'B-' },
+    'S+': { axis: 'z', coord: 0, dir: -1, desc: 'S+' }, 'S-': { axis: 'z', coord: 0, dir: 1, desc: 'S-' }
 };
 const SEQ = Object.values(ROTATIONS);
 
 // ── Facelet State & Permutation Logic ────────────────────────────────────────
 let f_state = Array.from({ length: 54 }, (_, i) => i);
 
-// =================================================================================
-// ▼▼▼ YOUR KNOWLEDGE GOES HERE ▼▼▼
-// =================================================================================
-// For each of the 18 moves below, replace the placeholder array `[...]` with the
-// correct f_state array that results from applying that *one single move* to a
-// solved cube. I have filled in 'L+' with the data you provided as an example.
-// The code will use these to build the correct transformation logic automatically.
-// =================================================================================
 const SINGLE_MOVE_F_STATES = {
     'L+': [45, 46, 47, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 2, 1, 0, 21, 22, 23, 24, 25, 26, 18, 19, 20, 30, 31, 32, 33, 34, 35, 38, 41, 44, 37, 40, 43, 36, 39, 42, 29, 28, 27, 48, 49, 50, 51, 52, 53],
     'L-': [20, 19, 18, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 27, 28, 29, 21, 22, 23, 24, 25, 26, 47, 46, 45, 30, 31, 32, 33, 34, 35, 42, 39, 36, 43, 40, 37, 44, 41, 38, 0, 1, 2, 48, 49, 50, 51, 52, 53],
@@ -204,16 +167,9 @@ const SINGLE_MOVE_F_STATES = {
     'F+': [36, 1, 2, 39, 4, 5, 6, 42, 8, 7, 10, 11, 3, 13, 14, 0, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 9, 28, 29, 12, 31, 32, 15, 34, 35, 33, 37, 38, 30, 40, 41, 27, 43, 44, 51, 48, 45, 52, 49, 46, 53, 50, 47],
     'F-': [15, 1, 2, 12, 4, 5, 6, 9, 8, 27, 10, 11, 30, 13, 14, 33, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 28, 29, 39, 31, 32, 36, 34, 35, 0, 37, 38, 3, 40, 41, 7, 43, 44, 47, 50, 53, 46, 49, 52, 45, 48, 51]
 };
-// =================================================================================
-// ▲▲▲ END OF KNOWLEDGE INPUT SECTION ▲▲▲
-// =================================================================================
 
-
-// This function builds the final PERM object from your knowledge.
-// YOU DO NOT NEED TO EDIT BELOW THIS LINE.
 const PERM = {};
 for (const moveName in SINGLE_MOVE_F_STATES) {
-    // The f_state after one move from solved IS the permutation table.
     PERM[moveName] = SINGLE_MOVE_F_STATES[moveName];
 }
 
@@ -225,29 +181,13 @@ const applyPerm = (state, perm) => {
     return newState;
 };
 
-
-// ── Helpers: c_state & fc_state ────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getState() {
     return cubies.map(c => {
         const p = c.position;
         const key = `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}`;
         return initialMap.get(key);
     });
-}
-
-const FACELET_TO_SLOT = [
-    6, 7, 8, 14, 15, 16, 22, 23, 24, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-    2, 5, 8, 11, 13, 16, 19, 22, 25, 0, 1, 2, 9, 10, 11, 17, 18, 19,
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 3, 6, 9, 12, 14, 17, 20, 23
-];
-function invert26(a26) {
-    const inv = new Array(26);
-    a26.forEach((slot, cube) => inv[slot] = cube);
-    return inv;
-}
-function computeFCState(c_state) {
-    const s2c = invert26(c_state);
-    return FACELET_TO_SLOT.map(slot => s2c[slot]);
 }
 
 // ── HUD & Telemetry Setup ────────────────────────────────────────────────────
@@ -323,11 +263,11 @@ function renderFlatNet() {
     }
 }
 
-// Full-cube console logger
 function logFull(label) {
     console.group(label);
     cubies.forEach((c, i) => {
-        const p = c.position, q = c.quaternion;
+        const p = c.position;
+        const q = c.quaternion;
         console.log(
             `Cubie ${i}: Pos(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}) ` +
             `Quat(${q.x.toFixed(2)},${q.y.toFixed(2)},${q.z.toFixed(2)},${q.w.toFixed(2)})`
@@ -336,7 +276,6 @@ function logFull(label) {
     console.groupEnd();
 }
 
-// Update HUD text
 function updateHUD() {
     let txt = '';
     cubies.forEach((c, i) => {
@@ -347,10 +286,8 @@ function updateHUD() {
     hudCubeState.textContent = txt;
 
     const c_state = getState();
-    const fc_state = computeFCState(c_state);
     hudState.textContent =
         `c_state : [${c_state.join(',')}]\n` +
-        `fc_state: [${fc_state.join(',')}]\n` +
         `f_state : [${f_state.join(',')}]`;
 
     renderFlatNet();
@@ -367,16 +304,14 @@ logBtn.addEventListener('click', async () => {
         const w = await fileH.createWritable({ keepExistingData: false });
 
         const c0 = getState();
-        const fc0 = computeFCState(c0);
-        await w.write(JSON.stringify({ move: null, c_state: c0, fc_state: fc0, f_state }) + '\n');
+        await w.write(JSON.stringify({ move: null, c_state: c0, f_state }) + '\n');
 
         for (let i = 0; i < 20000; i++) {
             const m = SEQ[Math.floor(Math.random() * SEQ.length)];
             instantRotate(m);
 
             const ci = getState();
-            const fci = computeFCState(ci);
-            await w.write(JSON.stringify({ move: m.desc, c_state: ci, fc_state: fci, f_state }) + '\n');
+            await w.write(JSON.stringify({ move: m.desc, c_state: ci, f_state }) + '\n');
             if ((i + 1) % 1000 === 0) console.log(`Logged ${i + 1}…`);
         }
         await w.close();
