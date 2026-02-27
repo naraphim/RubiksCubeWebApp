@@ -514,6 +514,76 @@ window.addEventListener('resize', () => {
     gizmoCamera.updateProjectionMatrix();
 });
 
+
+/* -------- Machine Move Array Execution Panel -------- */
+
+const moveInput = document.getElementById('move-array-input');
+const execBtn = document.getElementById('execute-move-array-btn');
+
+// Helper: disable all controls during sequence execution
+function setControlsLocked(lock) {
+    mCtrls.querySelectorAll('button').forEach(b => b.disabled = lock || !isPaused || isAnimating);
+    randBtn.disabled = lock || !isPaused || isAnimating;
+    resetBtn.disabled = lock || isAnimating;
+    playBtn.disabled = lock || isAnimating;
+}
+
+// Validate input syntax: strict bracketed array with commas, moves must be uppercase
+function parseMoveArray(str) {
+    // Strip whitespace
+    const s = str.trim();
+    // Must start with [ and end with ]
+    if (!s.startsWith('[') || !s.endsWith(']')) return null;
+    // Remove brackets
+    const inner = s.slice(1, -1).trim();
+    if (inner.length === 0) return [];
+    // Split on commas
+    const tokens = inner.split(',');
+    const moves = [];
+    for (let tok of tokens) {
+        tok = tok.trim();
+        if (!/^[A-Z][+-]$/.test(tok)) return null;
+        if (!ROTATIONS[tok]) return null;
+        moves.push(tok);
+    }
+    return moves;
+}
+
+// Apply the sequence one move at a time using your existing rotateSlice
+function runMoveSequence(arr) {
+    let i = 0;
+    function next() {
+        if (i >= arr.length) {
+            isPaused = true;
+            setControlsLocked(false);
+            return;
+        }
+        const name = arr[i++];
+        const m = ROTATIONS[name];
+        rotateSlice(m.axis, m.coord, m.dir, DURATION_RANDOM_ROTATE, () => {
+            setTimeout(next, DURATION_RANDOM_PAUSE);
+        }, m.desc);
+    }
+    isPaused = false;
+    setControlsLocked(true);
+    next();
+}
+
+execBtn.addEventListener('click', () => {
+    const txt = moveInput.value || '';
+    const moves = parseMoveArray(txt);
+    if (!moves || txt.length > 1000) {
+        // shake only on submit
+        moveInput.classList.add('shake');
+        setTimeout(() => moveInput.classList.remove('shake'), 300);
+        moveInput.value = '';
+        return;
+    }
+    // Clear input and execute
+    moveInput.value = '';
+    runMoveSequence(moves);
+});
+
 // ── Start Everything ─────────────────────────────────────────────────────────
 logFull('Initial State');
 updateHUD();
