@@ -41,7 +41,7 @@ export function toPlusMinusArray(solutionStr) {
     return solutionStr.trim().split(/\s+/).flatMap(tok => {
         const face = tok[0];
 
-        // FIX: In the 3D engine, L+, D+, and B+ visually rotate Counter-Clockwise.
+        // In the 3D engine, L+, D+, and B+ visually rotate Counter-Clockwise.
         // Standard notation dictates unmodified is Clockwise and ' is Counter-Clockwise.
         // Therefore, we must invert the +/- mapping for L, D, and B faces.
         const isInverted = face === 'L' || face === 'D' || face === 'B';
@@ -229,38 +229,4 @@ export async function extractStateAndSolve(inputStr) {
     } catch (e) { }
 
     throw new Error("Could not find a valid f_state or c_state array in the input string.");
-}
-
-// ── UI Interception Logic (Main App) ──────────────────────────────────────────
-
-if (typeof document !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', () => {
-        const solveBtn = document.getElementById('solve-btn');
-        if (solveBtn) {
-            solveBtn.addEventListener('click', async () => {
-                // Ensure we don't interfere when the cube is animating
-                if (solveBtn.disabled) return;
-
-                // Read from HUD without hacking into script.js locals
-                const hudState = document.getElementById('hud-state');
-                if (!hudState) return;
-
-                try {
-                    const moveArr = await extractStateAndSolve(hudState.textContent);
-                    const moveStr = JSON.stringify(moveArr).replace(/"/g, ''); // -> e.g.[U+,R-,D+]
-
-                    const moveInput = document.getElementById('move-array-input');
-                    if (moveInput) {
-                        moveInput.value = moveStr;
-                        // Trigger execution sequence automatically
-                        const execBtn = document.getElementById('execute-move-array-btn');
-                        if (execBtn) execBtn.click();
-                    }
-                } catch (err) {
-                    console.error("Solver error:", err);
-                    alert("Failed to solve: " + err.message);
-                }
-            });
-        }
-    });
 }

@@ -6,6 +6,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import TWEEN from 'tween';
 
+// Solver (wired to 🔃)
+import { solveFState } from './solver.js';
+
 const DURATION_ROTATE = 750;
 const DURATION_PAUSE = 1250;
 const DURATION_RANDOM_ROTATE = 150;
@@ -229,7 +232,6 @@ const netPositions = {
     27: { r: 9, c: 4 }, 30: { r: 9, c: 5 }, 33: { r: 9, c: 6 }, 28: { r: 8, c: 4 }, 31: { r: 8, c: 5 }, 34: { r: 8, c: 6 }, 29: { r: 7, c: 4 }, 32: { r: 7, c: 5 }, 35: { r: 7, c: 6 }
 };
 
-
 function renderFlatNet() {
     const container = document.getElementById('flat-net');
     container.innerHTML = '';
@@ -284,52 +286,24 @@ function updateHUD() {
     renderFlatNet();
 }
 
-// ── Solving Placeholder ──────────────────────────────────────────────────────
-solveBtn.addEventListener('click', () => {
-    if (!isPaused || isAnimating) return;
-    console.log("Solve functionality to be implemented...");
-    // Future solver logic goes here
-});
-
-// ── Logging 20k moves ─────────────────────────────────────────────────────────
-logBtn.addEventListener('click', async () => {
-    try {
-        const dirH = await window.showDirectoryPicker();
-        const fileH = await dirH.getFileHandle('cube_log.jsonl', { create: true });
-        const w = await fileH.createWritable({ keepExistingData: false });
-
-        const c0 = getState();
-        await w.write(JSON.stringify({ move: null, c_state: c0, f_state }) + '\n');
-
-        for (let i = 0; i < 20000; i++) {
-            const m = SEQ[Math.floor(Math.random() * SEQ.length)];
-            instantRotate(m);
-
-            const ci = getState();
-            await w.write(JSON.stringify({ move: m.desc, c_state: ci, f_state }) + '\n');
-            if ((i + 1) % 1000 === 0) console.log(`Logged ${i + 1}…`);
-        }
-        await w.close();
-        alert('Done.');
-    } catch (err) {
-        console.error(err);
-        alert(err.message);
-    }
-});
-
 // ── Rotation & Animation ─────────────────────────────────────────────────────
 let isAnimating = false, isPaused = false, pauseAfter = false;
 let nextId, rotIdx = 0;
 
+// Solver-in-flight gate (prevents state changes mid-solve)
+let isSolving = false;
+
 function updateControls() {
+    const hardLock = isSolving;
+
     mCtrls.querySelectorAll('button').forEach(b => {
-        b.disabled = !isPaused || isAnimating;
+        b.disabled = hardLock || !isPaused || isAnimating;
     });
-    randBtn.disabled = !isPaused || isAnimating;
-    resetBtn.disabled = isAnimating;
-    playBtn.disabled = isAnimating;
-    logBtn.disabled = !isPaused || isAnimating;
-    solveBtn.disabled = !isPaused || isAnimating;
+    randBtn.disabled = hardLock || !isPaused || isAnimating;
+    resetBtn.disabled = hardLock || isAnimating;
+    playBtn.disabled = hardLock || isAnimating;
+    logBtn.disabled = hardLock || !isPaused || isAnimating;
+    solveBtn.disabled = hardLock || !isPaused || isAnimating;
 }
 
 function rotateSlice(axis, coord, dir, dur, onDone, desc) {
@@ -403,6 +377,8 @@ function runNext() {
 }
 
 playBtn.addEventListener('click', () => {
+    if (isSolving) return;
+
     if (isAnimating) {
         pauseAfter = true;
         playBtn.textContent = '▶️';
@@ -420,6 +396,7 @@ playBtn.addEventListener('click', () => {
 });
 
 mCtrls.addEventListener('click', e => {
+    if (isSolving) return;
     if (e.target.tagName !== 'BUTTON' || !isPaused || isAnimating) return;
     const name = e.target.id.replace('btn-', '');
     const m = ROTATIONS[name]; if (!m) return;
@@ -431,6 +408,7 @@ mCtrls.addEventListener('click', e => {
 });
 
 randBtn.addEventListener('click', () => {
+    if (isSolving) return;
     if (!isPaused || isAnimating) return;
     isPaused = false;
     let last = null, seq = [];
@@ -453,6 +431,7 @@ randBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', () => {
+    if (isSolving) return;
     if (isAnimating) return;
     TWEEN.removeAll(); clearTimeout(nextId);
     cubies.forEach(c => {
@@ -529,12 +508,15 @@ const execBtn = document.getElementById('execute-move-array-btn');
 
 // Helper: disable all controls during sequence execution
 function setControlsLocked(lock) {
-    mCtrls.querySelectorAll('button').forEach(b => b.disabled = lock || !isPaused || isAnimating);
-    randBtn.disabled = lock || !isPaused || isAnimating;
-    resetBtn.disabled = lock || isAnimating;
-    playBtn.disabled = lock || isAnimating;
-    logBtn.disabled = lock || !isPaused || isAnimating;
-    solveBtn.disabled = lock || !isPaused || isAnimating;
+    const hardLock = isSolving;
+    const lockAll = hardLock || lock;
+
+    mCtrls.querySelectorAll('button').forEach(b => b.disabled = lockAll || !isPaused || isAnimating);
+    randBtn.disabled = lockAll || !isPaused || isAnimating;
+    resetBtn.disabled = lockAll || isAnimating;
+    playBtn.disabled = lockAll || isAnimating;
+    logBtn.disabled = lockAll || !isPaused || isAnimating;
+    solveBtn.disabled = lockAll || !isPaused || isAnimating;
 }
 
 // Validate input syntax: strict bracketed array with commas, moves must be uppercase
@@ -579,6 +561,8 @@ function runMoveSequence(arr) {
 }
 
 execBtn.addEventListener('click', () => {
+    if (isSolving) return;
+
     const txt = moveInput.value || '';
     const moves = parseMoveArray(txt);
     if (!moves || txt.length > 1000) {
@@ -591,6 +575,60 @@ execBtn.addEventListener('click', () => {
     // Clear input and execute
     moveInput.value = '';
     runMoveSequence(moves);
+});
+
+// ── Solve Button Wiring (🔃) ─────────────────────────────────────────────────
+//
+// Behavior: when enabled and pressed, uses current f_state as input to solver
+// and then runs the result exactly as if the user pasted into the move array
+// input and pressed ⏩.
+//
+solveBtn.addEventListener('click', async () => {
+    if (!isPaused || isAnimating || isSolving) return;
+
+    isSolving = true;
+    updateControls();
+
+    try {
+        const moveArr = await solveFState(f_state);
+        const moveStr = JSON.stringify(moveArr).replace(/"/g, ''); // -> [U+,R-,D+]
+        moveInput.value = moveStr;
+        execBtn.click();
+    } catch (err) {
+        console.error("Solver error:", err);
+        alert("Failed to solve: " + (err && err.message ? err.message : String(err)));
+    } finally {
+        isSolving = false;
+        updateControls();
+    }
+});
+
+// ── Logging 20k moves ─────────────────────────────────────────────────────────
+logBtn.addEventListener('click', async () => {
+    if (isSolving) return;
+
+    try {
+        const dirH = await window.showDirectoryPicker();
+        const fileH = await dirH.getFileHandle('cube_log.jsonl', { create: true });
+        const w = await fileH.createWritable({ keepExistingData: false });
+
+        const c0 = getState();
+        await w.write(JSON.stringify({ move: null, c_state: c0, f_state }) + '\n');
+
+        for (let i = 0; i < 20000; i++) {
+            const m = SEQ[Math.floor(Math.random() * SEQ.length)];
+            instantRotate(m);
+
+            const ci = getState();
+            await w.write(JSON.stringify({ move: m.desc, c_state: ci, f_state }) + '\n');
+            if ((i + 1) % 1000 === 0) console.log(`Logged ${i + 1}…`);
+        }
+        await w.close();
+        alert('Done.');
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+    }
 });
 
 // ── Start Everything ─────────────────────────────────────────────────────────
