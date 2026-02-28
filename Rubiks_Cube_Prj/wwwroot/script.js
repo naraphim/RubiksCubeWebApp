@@ -579,6 +579,7 @@ execBtn.addEventListener('click', () => {
 
 // ── Solve Button Wiring (🔃) ─────────────────────────────────────────────────
 //
+//
 // Behavior: when enabled and pressed, uses current f_state as input to solver
 // and then runs the result exactly as if the user pasted into the move array
 // input and pressed ⏩.
@@ -592,14 +593,23 @@ solveBtn.addEventListener('click', async () => {
     try {
         const moveArr = await solveFState(f_state);
         const moveStr = JSON.stringify(moveArr).replace(/"/g, ''); // -> [U+,R-,D+]
+
+        // Release the solver gate before triggering ⏩, otherwise execBtn's handler
+        // will ignore the synthetic click.
+        isSolving = false;
+        updateControls();
+
         moveInput.value = moveStr;
         execBtn.click();
     } catch (err) {
         console.error("Solver error:", err);
         alert("Failed to solve: " + (err && err.message ? err.message : String(err)));
     } finally {
-        isSolving = false;
-        updateControls();
+        // If we errored before releasing the gate, ensure UI is restored.
+        if (isSolving) {
+            isSolving = false;
+            updateControls();
+        }
     }
 });
 
