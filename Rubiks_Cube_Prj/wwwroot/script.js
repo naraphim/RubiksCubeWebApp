@@ -199,6 +199,8 @@ const hudControls = document.getElementById('hud-controls');
 const playBtn = document.getElementById('play-pause-btn');
 const randBtn = document.getElementById('randomize-btn');
 const resetBtn = document.getElementById('reset-btn');
+const solveBtn = document.getElementById('solve-btn');
+const logBtn = document.getElementById('log-btn');
 const mCtrls = document.getElementById('manual-controls');
 
 const hudState = document.createElement('pre');
@@ -282,10 +284,14 @@ function updateHUD() {
     renderFlatNet();
 }
 
+// ── Solving Placeholder ──────────────────────────────────────────────────────
+solveBtn.addEventListener('click', () => {
+    if (!isPaused || isAnimating) return;
+    console.log("Solve functionality to be implemented...");
+    // Future solver logic goes here
+});
+
 // ── Logging 20k moves ─────────────────────────────────────────────────────────
-const logBtn = document.getElementById('solve-btn');
-logBtn.title = 'Generate 20k cube_log.jsonl';
-logBtn.textContent = '📝';
 logBtn.addEventListener('click', async () => {
     try {
         const dirH = await window.showDirectoryPicker();
@@ -323,6 +329,7 @@ function updateControls() {
     resetBtn.disabled = isAnimating;
     playBtn.disabled = isAnimating;
     logBtn.disabled = !isPaused || isAnimating;
+    solveBtn.disabled = !isPaused || isAnimating;
 }
 
 function rotateSlice(axis, coord, dir, dur, onDone, desc) {
@@ -526,6 +533,8 @@ function setControlsLocked(lock) {
     randBtn.disabled = lock || !isPaused || isAnimating;
     resetBtn.disabled = lock || isAnimating;
     playBtn.disabled = lock || isAnimating;
+    logBtn.disabled = lock || !isPaused || isAnimating;
+    solveBtn.disabled = lock || !isPaused || isAnimating;
 }
 
 // Validate input syntax: strict bracketed array with commas, moves must be uppercase
