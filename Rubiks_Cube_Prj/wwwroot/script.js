@@ -14,6 +14,22 @@ const DURATION_PAUSE = 1250;
 const DURATION_RANDOM_ROTATE = 150;
 const DURATION_RANDOM_PAUSE = 50;
 
+// ── Debug / Telemetry Toggles ────────────────────────────────────────────────
+//
+// If you open: index.html?debug=1
+// then per-move console logging is enabled.
+// Leaving it off prevents DevTools from retaining huge log history, which
+// looks like a slow memory leak during long sessions.
+//
+const DEBUG_CONSOLE_LOGS = (() => {
+    try {
+        const qs = new URLSearchParams(window.location.search || '');
+        return qs.get('debug') === '1';
+    } catch (e) {
+        return false;
+    }
+})();
+
 // ── Scene, Camera & Renderer ─────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x333333);
@@ -257,6 +273,8 @@ function renderFlatNet() {
 }
 
 function logFull(label) {
+    if (!DEBUG_CONSOLE_LOGS) return;
+
     console.group(label);
     cubies.forEach((c, i) => {
         const p = c.position;
@@ -320,18 +338,19 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
         c._q = c.quaternion.clone();
     });
 
+    // Reuse objects inside the tween update to reduce per-frame allocations.
+    const axisVec = new THREE.Vector3(
+        axis === 'x' ? 1 : 0,
+        axis === 'y' ? 1 : 0,
+        axis === 'z' ? 1 : 0
+    );
+    const dq = new THREE.Quaternion();
+
     new TWEEN.Tween({ t: 0 })
         .to({ t: 1 }, dur)
         .easing(TWEEN.Easing.Quadratic.InOut)
         .onUpdate(({ t }) => {
-            const dq = new THREE.Quaternion().setFromAxisAngle(
-                new THREE.Vector3(
-                    axis === 'x' ? 1 : 0,
-                    axis === 'y' ? 1 : 0,
-                    axis === 'z' ? 1 : 0
-                ),
-                dir * t * Math.PI / 2
-            );
+            dq.setFromAxisAngle(axisVec, dir * t * Math.PI / 2);
             slice.forEach(c => {
                 c.position.copy(c._p).sub(centre).applyQuaternion(dq).add(centre);
                 c.quaternion.copy(c._q).premultiply(dq);
@@ -359,7 +378,12 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
 
             isAnimating = false;
             if (pauseAfter) { isPaused = true; pauseAfter = false; }
+
+            // This is the main fix for the "slow leak" symptom:
+            // DevTools retains console history and keeps growing.
+            // Logging is now opt-in via ?debug=1.
             logFull(`After ${desc}`);
+
             updateHUD(); updateControls();
             onDone && onDone();
         })
@@ -443,7 +467,9 @@ resetBtn.addEventListener('click', () => {
     isPaused = true;
     playBtn.textContent = '▶️';
     hudMoveInfo.textContent = 'Reset';
+
     logFull('After Reset');
+
     updateHUD();
     updateControls();
 });
@@ -500,7 +526,6 @@ window.addEventListener('resize', () => {
     gizmoCamera.updateProjectionMatrix();
 });
 
-
 /* -------- Machine Move Array Execution Panel -------- */
 
 const moveInput = document.getElementById('move-array-input');
@@ -521,14 +546,10 @@ function setControlsLocked(lock) {
 
 // Validate input syntax: strict bracketed array with commas, moves must be uppercase
 function parseMoveArray(str) {
-    // Strip whitespace
     const s = str.trim();
-    // Must start with [ and end with ]
     if (!s.startsWith('[') || !s.endsWith(']')) return null;
-    // Remove brackets
     const inner = s.slice(1, -1).trim();
     if (inner.length === 0) return [];
-    // Split on commas
     const tokens = inner.split(',');
     const moves = [];
     for (let tok of tokens) {
@@ -566,19 +587,16 @@ execBtn.addEventListener('click', () => {
     const txt = moveInput.value || '';
     const moves = parseMoveArray(txt);
     if (!moves || txt.length > 1000) {
-        // shake only on submit
         moveInput.classList.add('shake');
         setTimeout(() => moveInput.classList.remove('shake'), 300);
         moveInput.value = '';
         return;
     }
-    // Clear input and execute
     moveInput.value = '';
     runMoveSequence(moves);
 });
 
 // ── Solve Button Wiring (🔃) ─────────────────────────────────────────────────
-//
 //
 // Behavior: when enabled and pressed, uses current f_state as input to solver
 // and then runs the result exactly as if the user pasted into the move array
@@ -592,10 +610,8 @@ solveBtn.addEventListener('click', async () => {
 
     try {
         const moveArr = await solveFState(f_state);
-        const moveStr = JSON.stringify(moveArr).replace(/"/g, ''); // -> [U+,R-,D+]
+        const moveStr = JSON.stringify(moveArr).replace(/"/g, '');
 
-        // Release the solver gate before triggering ⏩, otherwise execBtn's handler
-        // will ignore the synthetic click.
         isSolving = false;
         updateControls();
 
@@ -605,7 +621,6 @@ solveBtn.addEventListener('click', async () => {
         console.error("Solver error:", err);
         alert("Failed to solve: " + (err && err.message ? err.message : String(err)));
     } finally {
-        // If we errored before releasing the gate, ensure UI is restored.
         if (isSolving) {
             isSolving = false;
             updateControls();
