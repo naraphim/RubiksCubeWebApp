@@ -248,27 +248,40 @@ const netPositions = {
     27: { r: 9, c: 4 }, 30: { r: 9, c: 5 }, 33: { r: 9, c: 6 }, 28: { r: 8, c: 4 }, 31: { r: 8, c: 5 }, 34: { r: 8, c: 6 }, 29: { r: 7, c: 4 }, 32: { r: 7, c: 5 }, 35: { r: 7, c: 6 }
 };
 
+let flatNetCells = [];
+let isFlatNetInitialized = false;
+
 function renderFlatNet() {
     const container = document.getElementById('flat-net');
-    container.innerHTML = '';
 
-    for (let i = 0; i < 54; i++) {
-        const div = document.createElement('div');
-        div.className = 'cell';
-        div.textContent = f_state[i];
+    // Only create DOM elements once to prevent memory thrashing
+    if (!isFlatNetInitialized) {
+        container.innerHTML = '';
+        for (let i = 0; i < 54; i++) {
+            const div = document.createElement('div');
+            div.className = 'cell';
 
-        const pos = netPositions[i];
-        if (pos) {
-            div.style.gridRowStart = pos.r;
-            div.style.gridColumnStart = pos.c;
+            const pos = netPositions[i];
+            if (pos) {
+                div.style.gridRowStart = pos.r;
+                div.style.gridColumnStart = pos.c;
+            }
+
+            flatNetCells.push(div);
+            container.appendChild(div);
         }
+        isFlatNetInitialized = true;
+    }
+
+    // Update existing elements
+    for (let i = 0; i < 54; i++) {
+        const div = flatNetCells[i];
+        div.textContent = f_state[i];
 
         const originalStickerId = f_state[i];
         const faceGroup = Math.floor(originalStickerId / 9);
         const mat = faceMats[faceGroup];
         div.style.backgroundColor = mat.color.getStyle();
-
-        container.appendChild(div);
     }
 }
 
