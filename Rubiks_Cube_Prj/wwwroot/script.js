@@ -15,12 +15,6 @@ const DURATION_RANDOM_ROTATE = 150;
 const DURATION_RANDOM_PAUSE = 50;
 
 // ── Debug / Telemetry Toggles ────────────────────────────────────────────────
-//
-// If you open: index.html?debug=1
-// then per-move console logging is enabled.
-// Leaving it off prevents DevTools from retaining huge log history, which
-// looks like a slow memory leak during long sessions.
-//
 const DEBUG_CONSOLE_LOGS = (() => {
     try {
         const qs = new URLSearchParams(window.location.search || '');
@@ -29,6 +23,14 @@ const DEBUG_CONSOLE_LOGS = (() => {
         return false;
     }
 })();
+
+// ── Global Reusable Math Objects (Zero-Allocation Pattern) ───────────────────
+// These prevent the garbage collector from trashing by reusing the same memory
+// addresses for math operations instead of creating 'new' objects on every frame.
+const _tempAxis = new THREE.Vector3();
+const _tempQuat = new THREE.Quaternion();
+const _tempEuler = new THREE.Euler();
+const _tempCenter = new THREE.Vector3();
 
 // ── Scene, Camera & Renderer ─────────────────────────────────────────────────
 const scene = new THREE.Scene();
@@ -132,8 +134,13 @@ for (let x = 0; x < CUBE_SIZE; x++) {
                 mats
             );
             mesh.position.copy(pos);
+
+            // Pre-allocate tracking memory on userData to avoid Map de-optimizations (leaks)
             mesh.userData.initialPosition = pos.clone();
             mesh.userData.initialQuaternion = mesh.quaternion.clone();
+            mesh.userData._p = new THREE.Vector3();
+            mesh.userData._q = new THREE.Quaternion();
+
             cubies.push(mesh);
             rubiksCube.add(mesh);
         }
@@ -149,8 +156,6 @@ cubies.forEach((c, i) => {
 });
 
 // ── Rotation Definitions ─────────────────────────────────────────────────────
-// CORRECTED: The `dir` properties for R, D, E, and B moves have been inverted
-// to match the logical f_state permutations and ensure visual consistency.
 const ROTATIONS = {
     'R+': { axis: 'x', coord: STEP, dir: -1, desc: 'R+' }, 'R-': { axis: 'x', coord: STEP, dir: 1, desc: 'R-' },
     'L+': { axis: 'x', coord: -STEP, dir: -1, desc: 'L+' }, 'L-': { axis: 'x', coord: -STEP, dir: 1, desc: 'L-' },
@@ -222,6 +227,9 @@ const solveBtn = document.getElementById('solve-btn');
 const logBtn = document.getElementById('log-btn');
 const mCtrls = document.getElementById('manual-controls');
 
+const moveInput = document.getElementById('move-array-input');
+const execBtn = document.getElementById('execute-move-array-btn');
+
 const hudState = document.createElement('pre');
 hudState.id = 'hud-state';
 hudState.style.cssText = `
@@ -234,17 +242,11 @@ hud.insertBefore(hudState, hudControls);
 
 // ── Flat-Net Display Logic ───────────────────────────────────────────────────
 const netPositions = {
-    // White Face (U)
     0: { r: 1, c: 4 }, 3: { r: 1, c: 5 }, 7: { r: 1, c: 6 }, 1: { r: 2, c: 4 }, 4: { r: 2, c: 5 }, 8: { r: 2, c: 6 }, 2: { r: 3, c: 4 }, 5: { r: 3, c: 5 }, 6: { r: 3, c: 6 },
-    // Orange Face (L)
     36: { r: 6, c: 1 }, 37: { r: 6, c: 2 }, 38: { r: 6, c: 3 }, 39: { r: 5, c: 1 }, 40: { r: 5, c: 2 }, 41: { r: 5, c: 3 }, 42: { r: 4, c: 1 }, 43: { r: 4, c: 2 }, 44: { r: 4, c: 3 },
-    // Blue Face (F)
     18: { r: 6, c: 4 }, 21: { r: 6, c: 5 }, 24: { r: 6, c: 6 }, 19: { r: 5, c: 4 }, 22: { r: 5, c: 5 }, 26: { r: 5, c: 6 }, 20: { r: 4, c: 4 }, 23: { r: 4, c: 5 }, 25: { r: 4, c: 6 },
-    // Red Face (R)
     9: { r: 6, c: 9 }, 10: { r: 6, c: 8 }, 11: { r: 6, c: 7 }, 12: { r: 5, c: 9 }, 13: { r: 5, c: 8 }, 17: { r: 5, c: 7 }, 15: { r: 4, c: 9 }, 16: { r: 4, c: 8 }, 14: { r: 4, c: 7 },
-    // Green Face (B)
     45: { r: 6, c: 12 }, 48: { r: 6, c: 11 }, 51: { r: 6, c: 10 }, 46: { r: 5, c: 12 }, 49: { r: 5, c: 11 }, 52: { r: 5, c: 10 }, 47: { r: 4, c: 12 }, 50: { r: 4, c: 11 }, 53: { r: 4, c: 10 },
-    // Yellow Face (D)
     27: { r: 9, c: 4 }, 30: { r: 9, c: 5 }, 33: { r: 9, c: 6 }, 28: { r: 8, c: 4 }, 31: { r: 8, c: 5 }, 34: { r: 8, c: 6 }, 29: { r: 7, c: 4 }, 32: { r: 7, c: 5 }, 35: { r: 7, c: 6 }
 };
 
@@ -254,7 +256,7 @@ let isFlatNetInitialized = false;
 function renderFlatNet() {
     const container = document.getElementById('flat-net');
 
-    // Only create DOM elements once to prevent memory thrashing
+    // Only create DOM elements once to prevent GC thrashing
     if (!isFlatNetInitialized) {
         container.innerHTML = '';
         for (let i = 0; i < 54; i++) {
@@ -287,7 +289,6 @@ function renderFlatNet() {
 
 function logFull(label) {
     if (!DEBUG_CONSOLE_LOGS) return;
-
     console.group(label);
     cubies.forEach((c, i) => {
         const p = c.position;
@@ -304,15 +305,12 @@ function updateHUD() {
     let txt = '';
     cubies.forEach((c, i) => {
         const p = c.position;
-        txt += `Cubie ${i.toString().padStart(2)}: `
-            + `Pos(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)})\n`;
+        txt += `Cubie ${i.toString().padStart(2)}: Pos(${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)})\n`;
     });
     hudCubeState.textContent = txt;
 
     const c_state = getState();
-    hudState.textContent =
-        `c_state : [${c_state.join(',')}]\n` +
-        `f_state : [${f_state.join(',')}]`;
+    hudState.textContent = `c_state :[${c_state.join(',')}]\nf_state : [${f_state.join(',')}]`;
 
     renderFlatNet();
 }
@@ -326,15 +324,16 @@ let isSolving = false;
 
 function updateControls() {
     const hardLock = isSolving;
+    const lockAll = hardLock || !isPaused || isAnimating;
 
-    mCtrls.querySelectorAll('button').forEach(b => {
-        b.disabled = hardLock || !isPaused || isAnimating;
-    });
-    randBtn.disabled = hardLock || !isPaused || isAnimating;
+    mCtrls.querySelectorAll('button').forEach(b => { b.disabled = lockAll; });
+    randBtn.disabled = lockAll;
     resetBtn.disabled = hardLock || isAnimating;
     playBtn.disabled = hardLock || isAnimating;
-    logBtn.disabled = hardLock || !isPaused || isAnimating;
-    solveBtn.disabled = hardLock || !isPaused || isAnimating;
+    logBtn.disabled = lockAll;
+    solveBtn.disabled = lockAll;
+    moveInput.disabled = lockAll;
+    execBtn.disabled = lockAll;
 }
 
 function rotateSlice(axis, coord, dir, dur, onDone, desc) {
@@ -342,31 +341,28 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
     hudMoveInfo.textContent = desc;
 
     const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
-    const centre = slice.reduce((s, c) => s.add(c.position), new THREE.Vector3())
-        .multiplyScalar(1 / slice.length);
-    centre[axis] = slice[0].position[axis];
+
+    _tempCenter.set(0, 0, 0);
+    slice.forEach(c => _tempCenter.add(c.position));
+    _tempCenter.multiplyScalar(1 / slice.length);
+    _tempCenter[axis] = slice[0].position[axis];
 
     slice.forEach(c => {
-        c._p = c.position.clone();
-        c._q = c.quaternion.clone();
+        // Copy values to pre-allocated tracking vars instead of cloning objects
+        c.userData._p.copy(c.position);
+        c.userData._q.copy(c.quaternion);
     });
 
-    // Reuse objects inside the tween update to reduce per-frame allocations.
-    const axisVec = new THREE.Vector3(
-        axis === 'x' ? 1 : 0,
-        axis === 'y' ? 1 : 0,
-        axis === 'z' ? 1 : 0
-    );
-    const dq = new THREE.Quaternion();
+    _tempAxis.set(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0);
 
     new TWEEN.Tween({ t: 0 })
         .to({ t: 1 }, dur)
         .easing(TWEEN.Easing.Quadratic.InOut)
         .onUpdate(({ t }) => {
-            dq.setFromAxisAngle(axisVec, dir * t * Math.PI / 2);
+            _tempQuat.setFromAxisAngle(_tempAxis, dir * t * Math.PI / 2);
             slice.forEach(c => {
-                c.position.copy(c._p).sub(centre).applyQuaternion(dq).add(centre);
-                c.quaternion.copy(c._q).premultiply(dq);
+                c.position.copy(c.userData._p).sub(_tempCenter).applyQuaternion(_tempQuat).add(_tempCenter);
+                c.quaternion.copy(c.userData._q).premultiply(_tempQuat);
             });
         })
         .onComplete(() => {
@@ -376,12 +372,13 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
                     Math.round(c.position.y / STEP) * STEP,
                     Math.round(c.position.z / STEP) * STEP
                 );
-                const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'XYZ');
-                e.x = Math.round(e.x / (Math.PI / 2)) * (Math.PI / 2);
-                e.y = Math.round(e.y / (Math.PI / 2)) * (Math.PI / 2);
-                e.z = Math.round(e.z / (Math.PI / 2)) * (Math.PI / 2);
-                c.quaternion.setFromEuler(e);
-                delete c._p; delete c._q;
+
+                // Use global recycled Euler
+                _tempEuler.setFromQuaternion(c.quaternion, 'XYZ');
+                _tempEuler.x = Math.round(_tempEuler.x / (Math.PI / 2)) * (Math.PI / 2);
+                _tempEuler.y = Math.round(_tempEuler.y / (Math.PI / 2)) * (Math.PI / 2);
+                _tempEuler.z = Math.round(_tempEuler.z / (Math.PI / 2)) * (Math.PI / 2);
+                c.quaternion.setFromEuler(_tempEuler);
             });
 
             const perm = PERM[desc];
@@ -392,11 +389,7 @@ function rotateSlice(axis, coord, dir, dur, onDone, desc) {
             isAnimating = false;
             if (pauseAfter) { isPaused = true; pauseAfter = false; }
 
-            // This is the main fix for the "slow leak" symptom:
-            // DevTools retains console history and keeps growing.
-            // Logging is now opt-in via ?debug=1.
             logFull(`After ${desc}`);
-
             updateHUD(); updateControls();
             onDone && onDone();
         })
@@ -490,31 +483,28 @@ resetBtn.addEventListener('click', () => {
 function instantRotate(m) {
     const { axis, coord, dir } = m;
     const slice = cubies.filter(c => Math.abs(c.position[axis] - coord) < 0.1);
-    const centre = slice.reduce((s, c) => s.add(c.position), new THREE.Vector3())
-        .multiplyScalar(1 / slice.length);
-    centre[axis] = slice[0].position[axis];
 
-    const dq = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(
-            axis === 'x' ? 1 : 0,
-            axis === 'y' ? 1 : 0,
-            axis === 'z' ? 1 : 0
-        ),
-        dir * Math.PI / 2
-    );
+    _tempCenter.set(0, 0, 0);
+    slice.forEach(c => _tempCenter.add(c.position));
+    _tempCenter.multiplyScalar(1 / slice.length);
+    _tempCenter[axis] = slice[0].position[axis];
+
+    _tempAxis.set(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0);
+    _tempQuat.setFromAxisAngle(_tempAxis, dir * Math.PI / 2);
+
     slice.forEach(c => {
-        c.position.copy(c.position).sub(centre).applyQuaternion(dq).add(centre);
-        c.quaternion.premultiply(dq);
+        c.position.sub(_tempCenter).applyQuaternion(_tempQuat).add(_tempCenter);
+        c.quaternion.premultiply(_tempQuat);
         c.position.set(
             Math.round(c.position.x / STEP) * STEP,
             Math.round(c.position.y / STEP) * STEP,
             Math.round(c.position.z / STEP) * STEP
         );
-        const e = new THREE.Euler().setFromQuaternion(c.quaternion, 'XYZ');
-        e.x = Math.round(e.x / (Math.PI / 2)) * (Math.PI / 2);
-        e.y = Math.round(e.y / (Math.PI / 2)) * (Math.PI / 2);
-        e.z = Math.round(e.z / (Math.PI / 2)) * (Math.PI / 2);
-        c.quaternion.setFromEuler(e);
+        _tempEuler.setFromQuaternion(c.quaternion, 'XYZ');
+        _tempEuler.x = Math.round(_tempEuler.x / (Math.PI / 2)) * (Math.PI / 2);
+        _tempEuler.y = Math.round(_tempEuler.y / (Math.PI / 2)) * (Math.PI / 2);
+        _tempEuler.z = Math.round(_tempEuler.z / (Math.PI / 2)) * (Math.PI / 2);
+        c.quaternion.setFromEuler(_tempEuler);
     });
     const perm = PERM[m.desc];
     if (perm) {
@@ -541,23 +531,7 @@ window.addEventListener('resize', () => {
 
 /* -------- Machine Move Array Execution Panel -------- */
 
-const moveInput = document.getElementById('move-array-input');
-const execBtn = document.getElementById('execute-move-array-btn');
-
-// Helper: disable all controls during sequence execution
-function setControlsLocked(lock) {
-    const hardLock = isSolving;
-    const lockAll = hardLock || lock;
-
-    mCtrls.querySelectorAll('button').forEach(b => b.disabled = lockAll || !isPaused || isAnimating);
-    randBtn.disabled = lockAll || !isPaused || isAnimating;
-    resetBtn.disabled = lockAll || isAnimating;
-    playBtn.disabled = lockAll || isAnimating;
-    logBtn.disabled = lockAll || !isPaused || isAnimating;
-    solveBtn.disabled = lockAll || !isPaused || isAnimating;
-}
-
-// Validate input syntax: strict bracketed array with commas, moves must be uppercase
+// Validate input syntax
 function parseMoveArray(str) {
     const s = str.trim();
     if (!s.startsWith('[') || !s.endsWith(']')) return null;
@@ -574,13 +548,13 @@ function parseMoveArray(str) {
     return moves;
 }
 
-// Apply the sequence one move at a time using your existing rotateSlice
+// Apply the sequence one move at a time
 function runMoveSequence(arr) {
     let i = 0;
     function next() {
         if (i >= arr.length) {
             isPaused = true;
-            setControlsLocked(false);
+            updateControls();
             return;
         }
         const name = arr[i++];
@@ -590,12 +564,13 @@ function runMoveSequence(arr) {
         }, m.desc);
     }
     isPaused = false;
-    setControlsLocked(true);
+    updateControls();
     next();
 }
 
 execBtn.addEventListener('click', () => {
-    if (isSolving) return;
+    // Hard concurrency lock
+    if (isSolving || isAnimating || !isPaused) return;
 
     const txt = moveInput.value || '';
     const moves = parseMoveArray(txt);
@@ -610,11 +585,6 @@ execBtn.addEventListener('click', () => {
 });
 
 // ── Solve Button Wiring (🔃) ─────────────────────────────────────────────────
-//
-// Behavior: when enabled and pressed, uses current f_state as input to solver
-// and then runs the result exactly as if the user pasted into the move array
-// input and pressed ⏩.
-//
 solveBtn.addEventListener('click', async () => {
     if (!isPaused || isAnimating || isSolving) return;
 
@@ -643,7 +613,7 @@ solveBtn.addEventListener('click', async () => {
 
 // ── Logging 20k moves ─────────────────────────────────────────────────────────
 logBtn.addEventListener('click', async () => {
-    if (isSolving) return;
+    if (isSolving || isAnimating || !isPaused) return;
 
     try {
         const dirH = await window.showDirectoryPicker();
