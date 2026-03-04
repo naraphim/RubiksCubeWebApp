@@ -56,12 +56,14 @@
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
-                "tween": "https://unpkg.com/@tweenjs/tween.js@20.0.3/dist/tween.esm.js"
+                "three": "./libs/three.module.js",
+                "three/addons/controls/OrbitControls.js": "./libs/OrbitControls.js",
+                "three/addons/geometries/RoundedBoxGeometry.js": "./libs/RoundedBoxGeometry.js",
+                "tween": "./libs/tween.esm.js"
             }
         }
     </script>
+
     <!-- Load the cubejs solver -->
     <script src="solver/cubejs.js"></script>
     <!-- Your custom solver adapter -->
